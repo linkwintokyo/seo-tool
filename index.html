@@ -204,10 +204,25 @@ tr:hover td{background:#f8f9ff}
   <div class="header">
     <div>
       <h1><i class="ti ti-chart-arrows-vertical" style="color:#3366ff;font-size:22px"></i> SEO順位分析ツール <span class="ver">v1</span></h1>
-      <p>Googleでログインするだけ — データは外部に送信されません</p>
+      <p>データは外部に送信されません · 読み取り専用</p>
     </div>
     <div class="header-right">
-      <button class="btn btn-o btn-sm" onclick="openSettings()"><i class="ti ti-settings"></i> 設定</button>
+      <!-- 未ログイン時 -->
+      <div id="hdr-login">
+        <button class="google-btn" onclick="doGoogleLogin()" style="padding:8px 16px;font-size:13px">
+          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E" alt="Google" style="width:18px;height:18px">
+          Googleでログイン
+        </button>
+      </div>
+      <!-- ログイン後 -->
+      <div id="hdr-user" style="display:none;align-items:center;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:5px 14px 5px 8px">
+          <div id="hdr-avatar" style="width:26px;height:26px;border-radius:50%;background:#3366ff;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0"></div>
+          <span id="hdr-name" style="font-size:13px;font-weight:600;color:#15803d"></span>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="doLogout()"><i class="ti ti-logout"></i></button>
+      </div>
+      <button class="btn btn-o btn-sm" onclick="openSettings()"><i class="ti ti-settings"></i></button>
     </div>
   </div>
 
@@ -219,6 +234,15 @@ tr:hover td{background:#f8f9ff}
     </div>
   </div>
 
+  <!-- ログイン促進バナー（未ログイン時にGSC/GA4タブで表示） -->
+  <div id="login-banner" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center">
+    <p style="font-size:14px;color:#1d4ed8;margin-bottom:12px"><i class="ti ti-brand-google"></i> Search Console・GA4を使うにはGoogleログインが必要です</p>
+    <button class="google-btn" onclick="doGoogleLogin()" style="margin:0 auto">
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E" alt="Google" style="width:18px;height:18px">
+      Googleでログイン
+    </button>
+  </div>
+
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('gsc')"><i class="ti ti-brand-google"></i> Search Console</button>
@@ -228,37 +252,11 @@ tr:hover td{background:#f8f9ff}
 
   <!-- ===== GSC Tab ===== -->
   <div id="panel-gsc" class="tab-panel active">
-    <div id="gsc-auth">
-      <div class="gauth-area">
-        <h3><i class="ti ti-brand-google" style="color:#ea4335"></i> Google Search Consoleと連携</h3>
-        <p>Googleアカウントでログインして、Search Consoleのデータを直接取得します。<br>読み取り専用アクセスのみです。</p>
-        <button class="google-btn" onclick="doGoogleLogin()" id="google-login-btn">
-          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E" alt="Google">
-          Googleでログイン
-        </button>
-        <p style="font-size:12px;color:#ccc;margin-top:14px;margin-bottom:0"><i class="ti ti-lock" style="font-size:11px"></i> 読み取り専用 · データは端末内のみで処理</p>
-      </div>
-    </div>
-    <div id="gsc-user" style="display:none">
-      <!-- ログイン後に表示 -->
-    </div>
     <div id="gsc-data"></div>
   </div>
 
   <!-- ===== GA4 Tab ===== -->
   <div id="panel-ga4" class="tab-panel">
-    <div id="ga4-auth">
-      <div class="gauth-area">
-        <h3><i class="ti ti-chart-line" style="color:#e37400"></i> Google Analytics 4 と連携</h3>
-        <p>Googleアカウントでログインして、GA4のデータを直接取得します。<br>読み取り専用アクセスのみです。</p>
-        <button class="google-btn" onclick="doGoogleLoginGA4()">
-          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E" alt="Google">
-          Googleでログイン
-        </button>
-        <p style="font-size:12px;color:#ccc;margin-top:14px;margin-bottom:0"><i class="ti ti-lock" style="font-size:11px"></i> 読み取り専用 · データは端末内のみで処理</p>
-      </div>
-    </div>
-    <div id="ga4-user" style="display:none"></div>
     <div id="ga4-data"></div>
   </div>
 
@@ -312,7 +310,7 @@ tr:hover td{background:#f8f9ff}
 /* ============================================================
    パスワード認証 ← ここを変更するとパスワードが変わります
    ============================================================ */
-const TOOL_PASSWORD = 'linkwinseo2026';
+const TOOL_PASSWORD = 'seo2026';
 
 function checkPw() {
   const input = document.getElementById('pw-input');
@@ -357,11 +355,20 @@ const S = {
    Init (パスワード認証後の初期化はcheckPw/loadイベントで実施済み)
    ============================================================ */
 window.addEventListener('load', () => {
-  // パスワード認証チェック（上部で処理済み）
   const clientId = localStorage.getItem('seo_client_id') || '';
   if (!clientId) {
     const banner = document.getElementById('setup-banner');
     if (banner) banner.style.display = 'flex';
+  }
+  // sessionStorageにトークンがあれば自動復元
+  const savedToken = sessionStorage.getItem('seo_token');
+  const savedUser = sessionStorage.getItem('seo_user');
+  if (savedToken && savedUser) {
+    S.accessToken = savedToken;
+    S.user = JSON.parse(savedUser);
+    showUserHeader(S.user);
+    loadGSCSites();
+    loadGA4Properties();
   }
 });
 
@@ -383,7 +390,7 @@ function saveClientId() {
 }
 
 /* ============================================================
-   Google OAuth
+   Google OAuth（GSC・GA4 共通 1回ログイン）
    ============================================================ */
 function getClientId() { return localStorage.getItem('seo_client_id') || ''; }
 
@@ -391,103 +398,79 @@ function doGoogleLogin() {
   const clientId = getClientId();
   if (!clientId) { openSettings(); return; }
   if (!window.google) { alert('Google認証ライブラリの読み込み中です。数秒後に再試行してください。'); return; }
-
   if (!S.tokenClient) {
     S.tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      scope: [
+        'https://www.googleapis.com/auth/webmasters.readonly',
+        'https://www.googleapis.com/auth/analytics.readonly',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile'
+      ].join(' '),
       callback: onTokenReceived
     });
   }
-  S.tokenClient.requestAccessToken();
+  S.tokenClient.requestAccessToken({ prompt: S.accessToken ? '' : 'consent' });
 }
 
 async function onTokenReceived(resp) {
-  if (resp.error) { showGSCError('ログインに失敗しました: ' + resp.error); return; }
+  if (resp.error) { console.error('OAuth error:', resp.error); return; }
   S.accessToken = resp.access_token;
+  // トークンをsessionStorageに保存（タブを閉じるまで有効）
+  sessionStorage.setItem('seo_token', resp.access_token);
+  // 1時間後に自動再取得
+  setTimeout(() => { if (S.accessToken) doGoogleLogin(); }, 55 * 60 * 1000);
 
-  // Get user info
   try {
     const uRes = await gFetch('https://www.googleapis.com/oauth2/v2/userinfo');
     S.user = uRes;
-    showUserBar(uRes);
-  } catch(e) { /* user info optional */ }
+    sessionStorage.setItem('seo_user', JSON.stringify(uRes));
+    showUserHeader(uRes);
+  } catch(e) {}
 
-  // Load sites
+  // GSC・GA4 両方ロード
   loadGSCSites();
+  loadGA4Properties();
 }
 
-function showUserBar(user) {
+function showUserHeader(user) {
   const initials = (user.name || user.email || 'U').slice(0,1).toUpperCase();
-  document.getElementById('gsc-auth').style.display = 'none';
-  document.getElementById('gsc-user').style.display = 'flex';
-  document.getElementById('gsc-user').innerHTML = `
-    <div class="user-bar">
-      <div class="avatar">${initials}</div>
-      <div>
-        <div class="uname">${esc(user.name || '')}</div>
-        <div class="uemail">${esc(user.email || '')}</div>
-      </div>
-      <div class="ml">
-        <button class="btn btn-danger btn-sm" onclick="doLogout()"><i class="ti ti-logout"></i> ログアウト</button>
-      </div>
-    </div>`;
+  document.getElementById('hdr-login').style.display = 'none';
+  const hdrUser = document.getElementById('hdr-user');
+  hdrUser.style.display = 'flex';
+  document.getElementById('hdr-avatar').textContent = initials;
+  document.getElementById('hdr-name').textContent = user.name || user.email || '';
+  document.getElementById('login-banner').style.display = 'none';
+}
+
+function showLoginBanner() {
+  document.getElementById('hdr-login').style.display = 'flex';
+  document.getElementById('hdr-user').style.display = 'none';
 }
 
 function doLogout() {
   S.accessToken = null; S.user = null; S.tokenClient = null;
-  S.gsc.kw = [];
-  document.getElementById('gsc-auth').style.display = 'block';
-  document.getElementById('gsc-user').style.display = 'none';
-  document.getElementById('gsc-user').innerHTML = '';
+  S.gsc.kw = []; S.ga4Pages = [];
+  sessionStorage.removeItem('seo_token');
+  sessionStorage.removeItem('seo_user');
+  showLoginBanner();
   document.getElementById('gsc-data').innerHTML = '';
-  // GA4もリセット
-  document.getElementById('ga4-auth').style.display = 'block';
-  document.getElementById('ga4-user').style.display = 'none';
-  document.getElementById('ga4-user').innerHTML = '';
   document.getElementById('ga4-data').innerHTML = '';
 }
 
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['gsc','ga4','ser'][i]===tab));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  // 未ログイン時にGSC/GA4タブを開いたらバナー表示
+  const needsLogin = (tab === 'gsc' || tab === 'ga4') && !S.accessToken;
+  document.getElementById('login-banner').style.display = needsLogin ? 'block' : 'none';
+}
+
+
 /* ============================================================
-   GA4 OAuth & API
+   GA4 API
    ============================================================ */
-function doGoogleLoginGA4() {
-  const clientId = getClientId();
-  if (!clientId) { openSettings(); return; }
-  if (!window.google) { alert('Google認証ライブラリの読み込み中です。数秒後に再試行してください。'); return; }
-  if (!S.tokenClient) {
-    S.tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
-      callback: onTokenReceivedGA4
-    });
-  }
-  S.tokenClient.requestAccessToken();
-}
-
-async function onTokenReceivedGA4(resp) {
-  if (resp.error) { document.getElementById('ga4-data').innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> ログインに失敗しました: ${resp.error}</div>`; return; }
-  S.accessToken = resp.access_token;
-  try {
-    const uRes = await gFetch('https://www.googleapis.com/oauth2/v2/userinfo');
-    S.user = uRes;
-    showGA4UserBar(uRes);
-  } catch(e) {}
-  loadGA4Properties();
-}
-
-function showGA4UserBar(user) {
-  const initials = (user.name || user.email || 'U').slice(0,1).toUpperCase();
-  document.getElementById('ga4-auth').style.display = 'none';
-  document.getElementById('ga4-user').style.display = 'block';
-  document.getElementById('ga4-user').innerHTML = `
-    <div class="user-bar">
-      <div class="avatar" style="background:#fff3e0;color:#e37400">${initials}</div>
-      <div><div class="uname">${esc(user.name||'')}</div><div class="uemail">${esc(user.email||'')}</div></div>
-      <div class="ml"><button class="btn btn-danger btn-sm" onclick="doLogout()"><i class="ti ti-logout"></i> ログアウト</button></div>
-    </div>`;
-}
-
 async function loadGA4Properties() {
   const el = document.getElementById('ga4-data');
   el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>GA4プロパティを取得中...</p></div>';
@@ -1041,12 +1024,6 @@ function setF(tab, val, el) {
   el.classList.add('on');
   const elId = 'tbl-'+tab;
   tbl(tab, elId);
-}
-
-function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['gsc','ga4','ser'][i]===tab));
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('panel-'+tab).classList.add('active');
 }
 
 /* ============================================================
