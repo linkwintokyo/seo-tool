@@ -149,6 +149,9 @@ tr:hover td{background:#f8f9ff}
 .ga4-flag-red{background:#fff1f2;color:#be123c;border:1px solid #fecdd3;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;display:inline-block}
 .ga4-flag-yellow{background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;display:inline-block}
 .ga4-flag-green{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;display:inline-block}
+.gsc-sub-btn{padding:8px 16px;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:#aaa;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.gsc-sub-btn:hover{color:#555}
+.gsc-sub-btn.active{color:#3366ff;border-bottom-color:#3366ff}
 .ga4-summary{background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:16px 20px;margin-bottom:20px}
 .ga4-summary h3{font-size:13px;font-weight:700;color:#e37400;margin-bottom:12px;display:flex;align-items:center;gap:6px}
 .ga4-bad-list{display:flex;flex-direction:column;gap:6px}
@@ -310,7 +313,7 @@ tr:hover td{background:#f8f9ff}
 /* ============================================================
    パスワード認証 ← ここを変更するとパスワードが変わります
    ============================================================ */
-const TOOL_PASSWORD = 'seo2026';
+const TOOL_PASSWORD = 'linkwinseo2026';
 
 function checkPw() {
   const input = document.getElementById('pw-input');
@@ -485,6 +488,7 @@ async function loadGA4Properties() {
       });
     });
     if (!props.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> GA4プロパティが見つかりませんでした。Google Analytics Admin APIが有効か確認してください。</div>'; return; }
+    S.ga4Props = props;
 
     const endDate = new Date();
     const startDate = new Date(); startDate.setDate(startDate.getDate() - 30);
@@ -494,23 +498,36 @@ async function loadGA4Properties() {
       <div class="info-box" style="background:#fff3e0;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e">
         <i class="ti ti-bulb"></i> <strong>要注意ページ</strong>：直帰率70%超・エンゲージメント時間30秒未満・エンゲージメント率30%未満のページを自動フラグします
       </div>
-      <div class="site-select">
-        <label><i class="ti ti-chart-line"></i> GA4プロパティ：</label>
-        <select id="ga4-prop-sel">${props.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select>
-      </div>
-      <div class="date-row">
-        <label><i class="ti ti-calendar"></i> 期間：</label>
-        <input type="date" id="ga4-start" value="${fmt(startDate)}">
-        <span style="color:#aaa;font-size:13px">〜</span>
-        <input type="date" id="ga4-end" value="${fmt(endDate)}">
-        <button class="btn btn-primary" onclick="fetchGA4Data()" style="background:#e37400">
-          <i class="ti ti-download"></i> データ取得
-        </button>
+      <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:16px 18px;margin-bottom:16px">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px">
+          <label style="font-size:13px;font-weight:600;color:#555;white-space:nowrap"><i class="ti ti-chart-line"></i> プロパティ：</label>
+          <input type="text" placeholder="名前で検索..." oninput="filterGA4Props(this.value)"
+            style="flex:1;min-width:160px;padding:7px 12px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;outline:none">
+          <select id="ga4-prop-sel" style="flex:2;min-width:220px;padding:8px 12px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;background:#fff;outline:none">
+            ${props.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <label style="font-size:13px;font-weight:600;color:#555;white-space:nowrap"><i class="ti ti-calendar"></i> 期間：</label>
+          <input type="date" id="ga4-start" value="${fmt(startDate)}" style="padding:7px 10px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;outline:none">
+          <span style="color:#aaa;font-size:13px">〜</span>
+          <input type="date" id="ga4-end" value="${fmt(endDate)}" style="padding:7px 10px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;outline:none">
+          <button class="btn btn-sm" style="background:#e37400;color:#fff" onclick="fetchGA4Data()">
+            <i class="ti ti-download"></i> データ取得
+          </button>
+        </div>
       </div>
       <div id="ga4-result"></div>`;
   } catch(e) {
     el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> プロパティ取得失敗: ${e.message}<br><small>Google Cloud ConsoleでGoogle Analytics Admin APIを有効にしてください。</small></div>`;
   }
+}
+
+function filterGA4Props(q) {
+  const sel = document.getElementById('ga4-prop-sel');
+  if (!sel || !S.ga4Props) return;
+  const filtered = S.ga4Props.filter(p => p.name.toLowerCase().includes(q.toLowerCase()));
+  sel.innerHTML = filtered.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
 }
 
 async function fetchGA4Data() {
@@ -688,40 +705,80 @@ async function loadGSCSites() {
     const data = await gFetch('https://www.googleapis.com/webmasters/v3/sites');
     const sites = (data.siteEntry || []).filter(s => s.permissionLevel !== 'siteUnverifiedUser');
     if (!sites.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> Search Consoleに登録済みのサイトが見つかりませんでした。</div>'; return; }
-
+    S.gscSites = sites;
     const endDate = new Date();
     const startDate = new Date(); startDate.setDate(startDate.getDate() - 90);
     const fmt = d => d.toISOString().slice(0,10);
 
     el.innerHTML = `
-      <div class="site-select">
-        <label><i class="ti ti-world"></i> サイトを選択：</label>
-        <select id="site-sel">${sites.map(s=>`<option value="${esc(s.siteUrl)}">${esc(s.siteUrl)}</option>`).join('')}</select>
+      <!-- サイト選択（検索付き） -->
+      <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:16px 18px;margin-bottom:16px">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px">
+          <label style="font-size:13px;font-weight:600;color:#555;white-space:nowrap"><i class="ti ti-world"></i> サイト：</label>
+          <input id="site-search" type="text" placeholder="URLで検索..." oninput="filterSites(this.value)"
+            style="flex:1;min-width:180px;padding:7px 12px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;outline:none">
+          <select id="site-sel" style="flex:2;min-width:220px;padding:8px 12px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;background:#fff;outline:none">
+            ${sites.map(s=>`<option value="${esc(s.siteUrl)}">${esc(s.siteUrl)}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <label style="font-size:13px;font-weight:600;color:#555;white-space:nowrap"><i class="ti ti-calendar"></i> 期間：</label>
+          <input type="date" id="date-start" value="${fmt(startDate)}" style="padding:7px 10px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;outline:none">
+          <span style="color:#aaa;font-size:13px">〜</span>
+          <input type="date" id="date-end" value="${fmt(endDate)}" style="padding:7px 10px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;outline:none">
+          <button class="btn btn-b btn-sm" onclick="fetchAllGSC()"><i class="ti ti-refresh"></i> データ取得</button>
+        </div>
       </div>
-      <div class="date-row">
-        <label><i class="ti ti-calendar"></i> 期間：</label>
-        <input type="date" id="date-start" value="${fmt(startDate)}">
-        <span style="color:#aaa;font-size:13px">〜</span>
-        <input type="date" id="date-end" value="${fmt(endDate)}">
-        <button class="btn btn-b" onclick="fetchGSCData()"><i class="ti ti-download"></i> データ取得</button>
+
+      <!-- GSCサブタブ -->
+      <div style="display:flex;border-bottom:2px solid #e4e7f0;margin-bottom:20px;gap:0">
+        <button class="gsc-sub-btn active" onclick="switchGSCSub('kw',this)"><i class="ti ti-search"></i> キーワード分析</button>
+        <button class="gsc-sub-btn" onclick="switchGSCSub('page',this)"><i class="ti ti-file-analytics"></i> ページ別パフォーマンス</button>
+        <button class="gsc-sub-btn" onclick="switchGSCSub('url',this)"><i class="ti ti-zoom-check"></i> URLチェッカー</button>
+        <button class="gsc-sub-btn" onclick="switchGSCSub('index',this)"><i class="ti ti-alert-triangle"></i> インデックス問題</button>
       </div>
-      <div id="gsc-result"></div>`;
+
+      <div id="gsc-sub-kw"><div class="empty"><i class="ti ti-arrow-up"></i><p>「データ取得」を押してください</p></div></div>
+      <div id="gsc-sub-page" style="display:none"><div class="empty"><i class="ti ti-arrow-up"></i><p>「データ取得」を押してください</p></div></div>
+      <div id="gsc-sub-url" style="display:none">${renderURLChecker()}</div>
+      <div id="gsc-sub-index" style="display:none">${renderIndexPanel()}</div>
+    `;
   } catch(e) { showGSCError('サイト一覧の取得に失敗しました: ' + e.message); }
 }
 
-async function fetchGSCData() {
-  const siteUrl = document.getElementById('site-sel').value;
-  const startDate = document.getElementById('date-start').value;
-  const endDate = document.getElementById('date-end').value;
-  const el = document.getElementById('gsc-result');
-  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>キーワードデータを取得中... (件数によって少し時間がかかります)</p></div>';
+function filterSites(q) {
+  const sel = document.getElementById('site-sel');
+  if (!sel || !S.gscSites) return;
+  const filtered = S.gscSites.filter(s => s.siteUrl.toLowerCase().includes(q.toLowerCase()));
+  sel.innerHTML = filtered.map(s=>`<option value="${esc(s.siteUrl)}">${esc(s.siteUrl)}</option>`).join('');
+}
 
+function switchGSCSub(name, btn) {
+  ['kw','page','url','index'].forEach(n => {
+    const el = document.getElementById('gsc-sub-'+n);
+    if (el) el.style.display = n === name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.gsc-sub-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function fetchAllGSC() {
+  const siteUrl = document.getElementById('site-sel')?.value;
+  const startDate = document.getElementById('date-start')?.value;
+  const endDate = document.getElementById('date-end')?.value;
+  if (!siteUrl) return;
+  // キーワードとページ並行取得
+  fetchGSCKeywords(siteUrl, startDate, endDate);
+  fetchGSCPages(siteUrl, startDate, endDate);
+}
+
+async function fetchGSCKeywords(siteUrl, startDate, endDate) {
+  const el = document.getElementById('gsc-sub-kw');
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>キーワードデータを取得中...</p></div>';
   try {
     const allRows = [];
     let startRow = 0;
     const rowLimit = 25000;
-
-    // ページネーションで全件取得（最大5ページ = 125,000件）
     for (let page = 0; page < 5; page++) {
       const body = JSON.stringify({ startDate, endDate, dimensions: ['query'], rowLimit, startRow });
       const data = await gFetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, { method:'POST', body });
@@ -730,22 +787,260 @@ async function fetchGSCData() {
       if (rows.length < rowLimit) break;
       startRow += rowLimit;
     }
-
-    if (!allRows.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> 指定期間のデータが見つかりませんでした。</div>'; return; }
-
+    if (!allRows.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> データが見つかりませんでした。</div>'; return; }
     S.gsc.kw = allRows.map(r => ({
-      keyword: r.keys[0] || '',
-      position: Math.round((r.position||0) * 10) / 10,
-      clicks: r.clicks || 0,
-      impressions: r.impressions || 0,
-      ctr: Math.round((r.ctr||0) * 1000) / 10,
-      volume: 0, prevPosition: null, landingPage: ''
-    })).sort((a,b) => a.position - b.position);
-
-    S.gsc.filter = 'all'; S.gsc.sort = 'position'; S.gsc.dir = 'asc';
-    renderAnalysis('gsc', document.getElementById('gsc-result'));
-  } catch(e) { el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> データ取得に失敗しました: ${e.message}</div>`; }
+      keyword: r.keys[0]||'', position: Math.round((r.position||0)*10)/10,
+      clicks: r.clicks||0, impressions: r.impressions||0,
+      ctr: Math.round((r.ctr||0)*1000)/10, volume:0, prevPosition:null, landingPage:''
+    })).sort((a,b)=>a.position-b.position);
+    S.gsc.filter='all'; S.gsc.sort='position'; S.gsc.dir='asc';
+    renderAnalysis('gsc', el);
+  } catch(e) { el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> ${e.message}</div>`; }
 }
+
+async function fetchGSCPages(siteUrl, startDate, endDate) {
+  const el = document.getElementById('gsc-sub-page');
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>ページ別データを取得中...</p></div>';
+  try {
+    const body = JSON.stringify({ startDate, endDate, dimensions: ['page'], rowLimit: 25000, orderBy: [{fieldName:'impressions',sortOrder:'DESCENDING'}] });
+    const data = await gFetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, { method:'POST', body });
+    const rows = data.rows || [];
+    if (!rows.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> データが見つかりませんでした。</div>'; return; }
+
+    const pages = rows.map(r => ({
+      url: r.keys[0]||'',
+      clicks: r.clicks||0,
+      impressions: r.impressions||0,
+      ctr: Math.round((r.ctr||0)*1000)/10,
+      position: Math.round((r.position||0)*10)/10
+    }));
+
+    // 要注意フラグ: 表示回数100以上なのにクリック0
+    const flagged = pages.filter(p => p.impressions >= 100 && p.clicks === 0);
+
+    let html = '';
+    if (flagged.length) {
+      html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:18px">
+        <div style="font-size:13px;font-weight:700;color:#b45309;margin-bottom:8px"><i class="ti ti-alert-triangle"></i> 表示されているのにクリックされていないページ（${flagged.length}件）</div>
+        <div style="font-size:12px;color:#92400e;margin-bottom:10px">表示回数100以上でクリック数0 → タイトル・ディスクリプションの改善でCTR改善の余地あり</div>
+        ${flagged.slice(0,5).map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff;border-radius:6px;margin-bottom:4px;font-size:12px">
+          <i class="ti ti-eye" style="color:#f59e0b;flex-shrink:0"></i>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1a1a2e">${esc(p.url)}</span>
+          <span style="color:#aaa;white-space:nowrap">表示 ${p.impressions.toLocaleString()} / 順位 ${p.position}</span>
+        </div>`).join('')}
+        ${flagged.length>5?`<div style="font-size:11px;color:#aaa;padding:4px 10px">他 ${flagged.length-5} ページ（下の表に全件）</div>`:''}
+      </div>`;
+    }
+
+    html += `
+    <div class="controls" style="margin-bottom:14px">
+      <span style="font-size:13px;color:#555">全 ${pages.length} ページ</span>
+      <div class="ml-auto">
+        <input type="text" id="page-search" placeholder="URLで絞り込み..." oninput="filterPageTable(this.value)"
+          style="padding:6px 10px;border:1px solid #e0e2ec;border-radius:7px;font-size:13px;outline:none;width:220px">
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="page-tbl">
+        <thead><tr>
+          <th>ページURL</th>
+          <th onclick="sortPageTbl('clicks')">クリック</th>
+          <th onclick="sortPageTbl('impressions')">表示回数</th>
+          <th onclick="sortPageTbl('ctr')">CTR</th>
+          <th onclick="sortPageTbl('position')">平均順位</th>
+          <th>判定</th>
+        </tr></thead>
+        <tbody id="page-tbody">${renderPageRows(pages)}</tbody>
+      </table>
+    </div>
+    <div class="abar">
+      <button class="btn btn-g btn-sm" onclick="dlPageCSV()"><i class="ti ti-download"></i> CSV出力</button>
+    </div>`;
+    el.innerHTML = html;
+    window._gscPages = pages;
+  } catch(e) { el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> ${e.message}</div>`; }
+}
+
+function renderPageRows(pages) {
+  return pages.map(p => {
+    let flag = '';
+    if (p.impressions >= 100 && p.clicks === 0) flag = '<span class="ga4-flag-yellow">CTR改善</span>';
+    else if (p.ctr < 1 && p.impressions >= 50) flag = '<span class="ga4-flag-yellow">CTR低め</span>';
+    else if (p.position <= 3 && p.clicks > 0) flag = '<span class="ga4-flag-green">✅ 好調</span>';
+    else flag = '<span style="color:#ccc;font-size:12px">−</span>';
+    return `<tr>
+      <td style="font-size:12px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(p.url)}">${esc(p.url)}</td>
+      <td>${p.clicks.toLocaleString()}</td>
+      <td>${p.impressions.toLocaleString()}</td>
+      <td style="color:${p.ctr<1?'#dc2626':p.ctr<3?'#ca8a04':'#16a34a'};font-weight:600">${p.ctr}%</td>
+      <td>${p.position}</td>
+      <td>${flag}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPageTable(q) {
+  if (!window._gscPages) return;
+  const filtered = window._gscPages.filter(p => p.url.toLowerCase().includes(q.toLowerCase()));
+  document.getElementById('page-tbody').innerHTML = renderPageRows(filtered);
+}
+
+function sortPageTbl(col) {
+  if (!window._gscPages) return;
+  window._gscPages.sort((a,b) => b[col]-a[col]);
+  document.getElementById('page-tbody').innerHTML = renderPageRows(window._gscPages);
+}
+
+function dlPageCSV() {
+  if (!window._gscPages) return;
+  const rows = [['ページURL','クリック','表示回数','CTR(%)','平均順位']];
+  window._gscPages.forEach(p => rows.push([p.url, p.clicks, p.impressions, p.ctr, p.position]));
+  const csv = '\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv;charset=utf-8'}),`gsc-pages-${today()}.csv`);
+}
+
+function renderURLChecker() {
+  return `
+  <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:20px 22px;margin-bottom:20px">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:6px"><i class="ti ti-zoom-check" style="color:#3366ff"></i> URLインデックス状態チェック</h3>
+    <p style="font-size:13px;color:#888;margin-bottom:16px">URLを入力してGoogleのインデックス状態・最終クロール日・問題点を確認します</p>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <input type="text" id="url-check-input" placeholder="https://example.com/page/" 
+        style="flex:1;min-width:280px;padding:10px 14px;border:1.5px solid #dde;border-radius:8px;font-size:14px;outline:none"
+        onkeydown="if(event.key==='Enter')checkURL()">
+      <button class="btn btn-b" onclick="checkURL()"><i class="ti ti-search"></i> チェック</button>
+    </div>
+    <div id="url-check-result"></div>
+  </div>`;
+}
+
+async function checkURL() {
+  const url = document.getElementById('url-check-input').value.trim();
+  const siteUrl = document.getElementById('site-sel')?.value;
+  const el = document.getElementById('url-check-result');
+  if (!url) return;
+  if (!siteUrl) { el.innerHTML = '<div class="err">先にサイトを選択してください</div>'; return; }
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>インデックス状態を確認中...</p></div>';
+  try {
+    const body = JSON.stringify({ inspectionUrl: url, siteUrl });
+    const data = await gFetch('https://searchconsole.googleapis.com/v1/urlInspection/index:inspect', { method:'POST', body });
+    const r = data.inspectionResult || {};
+    const idx = r.indexStatusResult || {};
+    const verdict = idx.verdict || 'UNKNOWN';
+    const coverageState = idx.coverageState || '';
+    const lastCrawl = idx.lastCrawlTime ? new Date(idx.lastCrawlTime).toLocaleDateString('ja-JP') : '不明';
+    const robotsTxt = idx.robotsTxtState || '';
+    const indexingState = idx.indexingState || '';
+
+    const verdictColor = verdict==='PASS'?'#16a34a':verdict==='FAIL'?'#dc2626':'#ca8a04';
+    const verdictLabel = verdict==='PASS'?'✅ インデックス済み':verdict==='FAIL'?'❌ インデックス未登録':'⚠️ 不明';
+
+    el.innerHTML = `
+    <div style="border:1.5px solid ${verdictColor};border-radius:10px;padding:16px 20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:18px;font-weight:700;color:${verdictColor}">${verdictLabel}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;font-size:13px">
+        <div style="background:#f8f9fc;border-radius:8px;padding:10px 14px">
+          <div style="color:#aaa;font-size:11px;margin-bottom:3px">カバレッジ状態</div>
+          <div style="font-weight:600;color:#1a1a2e">${esc(coverageState)||'−'}</div>
+        </div>
+        <div style="background:#f8f9fc;border-radius:8px;padding:10px 14px">
+          <div style="color:#aaa;font-size:11px;margin-bottom:3px">最終クロール日</div>
+          <div style="font-weight:600;color:#1a1a2e">${lastCrawl}</div>
+        </div>
+        <div style="background:#f8f9fc;border-radius:8px;padding:10px 14px">
+          <div style="color:#aaa;font-size:11px;margin-bottom:3px">robots.txt</div>
+          <div style="font-weight:600;color:${robotsTxt==='ALLOWED'?'#16a34a':'#dc2626'}">${robotsTxt==='ALLOWED'?'✅ 許可':'⛔ ブロック'}</div>
+        </div>
+        <div style="background:#f8f9fc;border-radius:8px;padding:10px 14px">
+          <div style="color:#aaa;font-size:11px;margin-bottom:3px">インデックス設定</div>
+          <div style="font-weight:600;color:${indexingState==='INDEXING_ALLOWED'?'#16a34a':'#dc2626'}">${indexingState==='INDEXING_ALLOWED'?'✅ 許可':'⛔ ブロック'}</div>
+        </div>
+      </div>
+      ${verdict!=='PASS'?`<div style="margin-top:14px;background:#fff8f8;border-radius:8px;padding:12px 14px;font-size:13px;color:#be123c">
+        <strong>改善のヒント：</strong> ${getCoverageAdvice(coverageState)}
+      </div>`:''}
+    </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> チェック失敗: ${e.message}<br><small>URLはサイトと同じドメインである必要があります</small></div>`;
+  }
+}
+
+function getCoverageAdvice(state) {
+  const map = {
+    'Crawled - currently not indexed': 'Googleがクロール済みですがインデックスしていません。コンテンツの質・独自性・E-E-A-Tの向上が有効です。',
+    'Discovered - currently not indexed': 'URLは検出されていますがまだクロールされていません。内部リンクの強化・サイトマップへの追加を行いましょう。',
+    'Duplicate, Google chose different canonical than user': '重複ページと判断されています。canonicalタグで正規URLを明示してください。',
+    'Page with redirect': 'リダイレクトページです。最終URLが正しくインデックスされているか確認してください。',
+    'Blocked by robots.txt': 'robots.txtでブロックされています。インデックスが必要なら記述を見直してください。',
+    'Blocked by noindex': 'noindexタグが設定されています。不要なら削除してください。',
+  };
+  return map[state] || 'Search Consoleのカバレッジレポートで詳細を確認してください。';
+}
+
+function renderIndexPanel() {
+  return `
+  <div style="display:grid;gap:16px">
+    <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:20px 22px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px;color:#1a1a2e">
+        <i class="ti ti-clock" style="color:#ca8a04"></i> クロール済み - インデックス未登録
+      </h3>
+      <div style="font-size:12px;background:#fffbeb;color:#92400e;border-radius:6px;padding:8px 12px;margin-bottom:14px;border:1px solid #fde68a">
+        Googleがページをクロール（取得）したが、インデックスへの追加を見送った状態
+      </div>
+      <div style="font-size:13px;color:#555;line-height:1.9">
+        <strong style="color:#1a1a2e">主な原因：</strong><br>
+        ① コンテンツの質が低い・他のページと重複している<br>
+        ② 薄いコンテンツ（文字数が少ない・情報量が不足）<br>
+        ③ E-E-A-T（専門性・権威性・信頼性・経験）が不足している<br>
+        ④ 他のURLにリダイレクトされているため不要と判断された
+      </div>
+      <div style="margin-top:14px;background:#f0fdf4;border-radius:8px;padding:12px 14px;font-size:13px;color:#15803d;border:1px solid #bbf7d0">
+        <strong>✅ 改善アクション：</strong> コンテンツをリライトして独自性・専門性を高める。類似ページはcanonicalで統合。内部リンクを増やしてページの重要性を示す。
+      </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:20px 22px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px;color:#1a1a2e">
+        <i class="ti ti-radar" style="color:#dc2626"></i> 検出済み - インデックス未登録
+      </h3>
+      <div style="font-size:12px;background:#fff1f2;color:#be123c;border-radius:6px;padding:8px 12px;margin-bottom:14px;border:1px solid #fecdd3">
+        GoogleがURLの存在を把握したが、まだクロール（取得）すらされていない状態
+      </div>
+      <div style="font-size:13px;color:#555;line-height:1.9">
+        <strong style="color:#1a1a2e">主な原因：</strong><br>
+        ① クロールバジェット不足（サイトが大きく後回しにされている）<br>
+        ② 内部リンクが少なくGooglebotが到達しにくい<br>
+        ③ サイトマップに含まれていない<br>
+        ④ サーバーが過去にエラーを返した履歴がある
+      </div>
+      <div style="margin-top:14px;background:#f0fdf4;border-radius:8px;padding:12px 14px;font-size:13px;color:#15803d;border:1px solid #bbf7d0">
+        <strong>✅ 改善アクション：</strong> XMLサイトマップに追加してSearch Consoleから送信。トップページや主要ページから内部リンクを追加。不要なページを削除してクロールバジェットを節約。
+      </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:20px 22px">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:#1a1a2e"><i class="ti ti-list-check" style="color:#3366ff"></i> インデックス問題 優先対応チェックリスト</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+        ${[
+          ['robots.txtで重要ページをブロックしていないか確認','tech'],
+          ['noindexタグが誤って設定されていないか確認','tech'],
+          ['サイトマップを作成してSearch Consoleに送信','sitemap'],
+          ['重要ページへの内部リンクを3本以上追加','link'],
+          ['コンテンツを1,000文字以上にリライト','content'],
+          ['類似ページをcanonicalで統合','canon'],
+          ['サーバーエラー（5xx）が発生していないか確認','server'],
+        ].map(([t])=>`<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;background:#f8f9fc;border-radius:6px;cursor:pointer">
+          <input type="checkbox" style="margin-top:2px;width:15px;height:15px;flex-shrink:0">
+          <span>${t}</span>
+        </label>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function fetchGSCData() { fetchAllGSC(); } // 後方互換
 
 function showGSCError(msg) {
   document.getElementById('gsc-data').innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i><span>${msg}</span></div>`;
