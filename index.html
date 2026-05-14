@@ -474,14 +474,57 @@ function parseSER(text) {
   const lines = text.split('\n').map(l=>l.trim()).filter(l=>l);
   if (!lines.length) return [];
   const sep = lines[0].includes('\t') ? '\t' : ',';
-  const hdr = csvsplit(lines[0], sep).map(h=>cl(h).toLowerCase());
+
+  // ヘッダー行を探す（キーワード列がある行）
+  let hi = 0;
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    const l = lines[i].toLowerCase();
+    if (l.includes('キーワード') || l.includes('keyword')) { hi = i; break; }
+  }
+  const hdr = csvsplit(lines[hi], sep).map(h=>cl(h).toLowerCase());
+
+  // 日付別詳細フォーマット検出（YYYY-MM-DD形式の列があるか）
+  const isDetailed = hdr.some(h => /^\d{4}-\d{2}-\d{2}$/.test(h));
+
+  if (isDetailed) {
+    // 詳細フォーマット: キーワード,Url,検索ボリューム,クリック数,[日付,変動,URL]×n
+    const ki = hdr.findIndex(h=>h.includes('キーワード')||h.includes('keyword'));
+    const vi = hdr.findIndex(h=>h.includes('ボリューム')||h.includes('volume'));
+    const clki = hdr.findIndex(h=>h.includes('クリック')||h.includes('click'));
+    // 日付列の開始インデックスを探す
+    const firstDateIdx = hdr.findIndex(h => /^\d{4}-\d{2}-\d{2}$/.test(h));
+    // 日付グループ数: (全列数 - firstDateIdx) / 3
+    const res = [];
+    for (let i = hi + 1; i < lines.length; i++) {
+      const cells = csvsplit(lines[i], sep).map(cl);
+      if (!cells[ki]) continue;
+      const totalCols = cells.length;
+      const numGroups = Math.floor((totalCols - firstDateIdx) / 3);
+      if (numGroups < 1) continue;
+      // 最新順位 = 最後のグループの最初の列
+      const lastPosIdx = firstDateIdx + (numGroups - 1) * 3;
+      const prevPosIdx = numGroups >= 2 ? firstDateIdx + (numGroups - 2) * 3 : -1;
+      const landingIdx = lastPosIdx + 2;
+      const pr = cells[lastPosIdx] || '';
+      const pos = (pr==='-'||pr===''||/n\/a/i.test(pr)) ? 101 : parseFloat(pr)||101;
+      const prevr = prevPosIdx >= 0 ? cells[prevPosIdx]||'' : '';
+      const prev = (prevr==='-'||prevr===''||/n\/a/i.test(prevr)) ? null : parseFloat(prevr)||null;
+      const vol = vi>=0 ? parseInt((cells[vi]||'0').replace(/,/g,''))||0 : 0;
+      const clks = clki>=0 ? parseInt((cells[clki]||'0').replace(/,/g,''))||0 : 0;
+      const url = landingIdx < cells.length ? cells[landingIdx] : '';
+      res.push({ keyword:cells[ki], position:pos, prevPosition:prev, volume:vol, clicks:clks, impressions:0, ctr:0, landingPage:url });
+    }
+    return res.filter(r=>r.keyword).sort((a,b)=>a.position-b.position);
+  }
+
+  // 通常フォーマット（サマリーCSV）
   const ki = hdr.findIndex(h=>h.includes('keyword')||h.includes('キーワード'));
   const pi = hdr.findIndex(h=>(h.includes('rank')||h.includes('position')||h.includes('順位'))&&!h.includes('prev')&&!h.includes('best')&&!h.includes('前')&&!h.includes('change'));
   const pi2 = hdr.findIndex(h=>h.includes('prev')||h.includes('previous')||h.includes('前回'));
   const vi = hdr.findIndex(h=>h.includes('volume')||h.includes('ボリューム'));
   const ui = hdr.findIndex(h=>h.includes('landing')||h.includes('url')||h.includes('ページ'));
   const res = [];
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = hi + 1; i < lines.length; i++) {
     const cells = csvsplit(lines[i], sep).map(cl);
     if (!cells[ki]) continue;
     const pr = cells[pi] || '';
