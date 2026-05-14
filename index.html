@@ -265,20 +265,33 @@ tr:hover td{background:#f8f9ff}
 
   <!-- ===== SE Ranking Tab ===== -->
   <div id="panel-ser" class="tab-panel">
-    <div class="upload-hint">
-      <strong>📥 CSVの取得方法：</strong>
-      SE Ranking → プロジェクト → <code>順位チェック</code> → 右上 <code>エクスポート</code> → <code>CSV</code><br>
-      ゲストリンクで共有されたレポートでも同様に「エクスポート → CSV」からダウンロードできます。<br>
-      <span style="color:#aaa;font-size:12px">※ SE RankingのAPIアクセスは有料プランのみのため、CSV取り込み方式を採用しています。</span>
+
+    <!-- アップロード＋月指定エリア -->
+    <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <span style="font-size:14px;font-weight:700;color:#1a1a2e"><i class="ti ti-calendar-plus" style="color:#3366ff"></i> データを追加（月次蓄積）</span>
+        <span style="font-size:12px;color:#aaa">対象年月を選択してCSVをアップロード</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+        <label style="font-size:13px;font-weight:600;color:#555">対象月：</label>
+        <input type="month" id="ser-month" style="padding:8px 12px;border:1.5px solid #e0e2ec;border-radius:8px;font-size:14px;outline:none;color:#1a1a2e">
+        <label style="font-size:13px;font-weight:600;color:#555">クライアント名：</label>
+        <input type="text" id="ser-client" placeholder="例：たちばな整骨院" style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid #e0e2ec;border-radius:8px;font-size:13px;outline:none">
+      </div>
+      <div class="upload-area" id="drop-ser" style="margin-bottom:0;padding:24px"
+        onclick="document.getElementById('fs').click()"
+        ondragover="dov(event,'drop-ser')" ondragleave="dlv('drop-ser')" ondrop="dop(event,'ser')">
+        <i class="ti ti-file-spreadsheet uico" style="font-size:24px;margin-bottom:6px"></i>
+        <p style="font-size:13px">SE Ranking CSVをドロップ、またはクリックして選択</p>
+        <small>キーワード・順位・前回順位・検索ボリューム対応</small>
+      </div>
+      <input type="file" id="fs" accept=".csv" onchange="lf(event,'ser')">
     </div>
-    <div class="upload-area" id="drop-ser"
-      onclick="document.getElementById('fs').click()"
-      ondragover="dov(event,'drop-ser')" ondragleave="dlv('drop-ser')" ondrop="dop(event,'ser')">
-      <i class="ti ti-file-spreadsheet uico"></i>
-      <p>SE Ranking CSVをドロップ、またはクリックして選択</p>
-      <small>キーワード・順位・前回順位・検索ボリュームなどに対応</small>
-    </div>
-    <input type="file" id="fs" accept=".csv" onchange="lf(event,'ser')">
+
+    <!-- 蓄積データ一覧 -->
+    <div id="ser-history-panel"></div>
+
+    <!-- 分析結果 -->
     <div id="out-ser"></div>
   </div>
 
@@ -1056,17 +1069,57 @@ function dlv(id){document.getElementById(id).classList.remove('drag');}
 function dop(e,tab){e.preventDefault();dlv('drop-'+tab);const f=e.dataTransfer.files[0];if(f)proc(f,tab);}
 function lf(e,tab){const f=e.target.files[0];if(f)proc(f,tab);}
 
+// デフォルト月を先月に設定
+window.addEventListener('DOMContentLoaded', () => {
+  const m = document.getElementById('ser-month');
+  if (m) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    m.value = d.toISOString().slice(0,7);
+  }
+  renderSerHistory();
+});
+
 function proc(file, tab) {
   const r = new FileReader();
   r.onload = e => {
     try {
       const result = parseSER(e.target.result);
       if (!result.kw.length) { showTabErr(tab, 'CSVを解析できませんでした。フォーマットを確認してください。'); return; }
-      S[tab].kw = result.kw;
-      S[tab].siteUrl = result.siteUrl || '';
-      S[tab].engineInfo = result.engineInfo || '';
-      S[tab].filter = 'all'; S[tab].sort = 'position'; S[tab].dir = 'asc';
-      renderAnalysis(tab, document.getElementById('out-'+tab));
+
+      // SE Rankingの場合は月次蓄積
+      if (tab === 'ser') {
+        const month = document.getElementById('ser-month')?.value;
+        const client = (document.getElementById('ser-client')?.value || result.siteUrl || '不明').trim();
+        if (!month) { showTabErr(tab, '対象月を選択してからアップロードしてください。'); return; }
+
+        // localStorageに保存
+        const history = getSerHistory();
+        const key = `${client}__${month}`;
+        history[key] = { client, month, siteUrl: result.siteUrl, engineInfo: result.engineInfo, kw: result.kw, savedAt: new Date().toISOString() };
+        saveSerHistory(history);
+
+        // 現在のデータとしてもセット
+        S[tab].kw = result.kw;
+        S[tab].siteUrl = result.siteUrl || '';
+        S[tab].engineInfo = result.engineInfo || '';
+        S[tab].filter = 'all'; S[tab].sort = 'position'; S[tab].dir = 'asc';
+
+        // 履歴パネル更新
+        renderSerHistory();
+        // 最新データ＋トレンド分析を表示
+        renderSerWithTrend(client);
+
+        // アップロード完了メッセージ
+        const drop = document.getElementById('drop-ser');
+        if (drop) { drop.style.borderColor = '#16a34a'; drop.style.background = '#f0fdf4'; setTimeout(()=>{ drop.style.borderColor=''; drop.style.background=''; },2000); }
+      } else {
+        S[tab].kw = result.kw;
+        S[tab].siteUrl = result.siteUrl || '';
+        S[tab].engineInfo = result.engineInfo || '';
+        S[tab].filter = 'all'; S[tab].sort = 'position'; S[tab].dir = 'asc';
+        renderAnalysis(tab, document.getElementById('out-'+tab));
+      }
     } catch(err) { showTabErr(tab, '読み込みエラー: ' + err.message); }
   };
   r.readAsText(file, 'UTF-8');
@@ -1074,6 +1127,139 @@ function proc(file, tab) {
 
 function showTabErr(tab, msg) {
   document.getElementById('out-'+tab).innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i><span>${msg}</span></div>`;
+}
+
+/* ---- localStorageヘルパー ---- */
+function getSerHistory() {
+  try { return JSON.parse(localStorage.getItem('ser_history') || '{}'); } catch(e) { return {}; }
+}
+function saveSerHistory(h) { localStorage.setItem('ser_history', JSON.stringify(h)); }
+
+/* ---- 蓄積データ一覧 ---- */
+function renderSerHistory() {
+  const el = document.getElementById('ser-history-panel');
+  if (!el) return;
+  const history = getSerHistory();
+  const keys = Object.keys(history).sort().reverse();
+  if (!keys.length) { el.innerHTML = ''; return; }
+  const clients = {};
+  keys.forEach(k => { const d=history[k]; if(!clients[d.client])clients[d.client]=[]; clients[d.client].push({key:k,...d}); });
+  let html = `<div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <span style="font-size:14px;font-weight:700;color:#1a1a2e"><i class="ti ti-database" style="color:#3366ff"></i> 蓄積データ一覧</span>
+      <button class="btn btn-o btn-sm" onclick="if(confirm('全データを削除しますか？')){localStorage.removeItem('ser_history');renderSerHistory();document.getElementById('out-ser').innerHTML='';}"><i class="ti ti-trash"></i> 全削除</button>
+    </div>`;
+  Object.entries(clients).forEach(([client, entries]) => {
+    const months = entries.sort((a,b)=>b.month.localeCompare(a.month));
+    html += `<div style="margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:6px">${esc(client)}${months[0].siteUrl?` <span style="font-weight:400;color:#bbb">— ${esc(months[0].siteUrl)}</span>`:''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${months.map(m=>`<div style="display:flex;align-items:center;gap:4px;background:#f0f4ff;border:1px solid #bfdbfe;border-radius:20px;padding:4px 10px 4px 12px;font-size:12px">
+          <span style="font-weight:600;color:#1d4ed8;cursor:pointer" onclick="loadSerMonth('${esc(m.key)}')">${m.month}</span>
+          <span style="color:#aaa;margin:0 4px">(${m.kw.length}KW)</span>
+          <button onclick="deleteSerMonth('${esc(m.key)}')" style="background:none;border:none;cursor:pointer;color:#aaa;padding:0;font-size:12px">✕</button>
+        </div>`).join('')}
+        <button class="btn btn-o btn-sm" style="border-radius:20px;font-size:12px;padding:3px 10px" onclick="renderTrendAnalysis('${esc(client)}')"><i class="ti ti-chart-line"></i> トレンド分析</button>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function loadSerMonth(key) {
+  const history = getSerHistory();
+  const d = history[key]; if(!d) return;
+  S.ser.kw=d.kw; S.ser.siteUrl=d.siteUrl||''; S.ser.engineInfo=d.engineInfo||'';
+  S.ser.filter='all'; S.ser.sort='position'; S.ser.dir='asc';
+  const el = document.getElementById('out-ser');
+  el.innerHTML = `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:13px;color:#1d4ed8">
+    <i class="ti ti-calendar"></i> <strong>${d.month}</strong> のデータを表示中 — ${esc(d.client)}</div>`;
+  renderAnalysis('ser', el);
+}
+
+function deleteSerMonth(key) {
+  if(!confirm('このデータを削除しますか？')) return;
+  const h=getSerHistory(); delete h[key]; saveSerHistory(h); renderSerHistory();
+}
+
+function renderSerWithTrend(client) {
+  const history = getSerHistory();
+  const entries = Object.entries(history).filter(([k])=>history[k].client===client).map(([k,v])=>v).sort((a,b)=>b.month.localeCompare(a.month));
+  if(!entries.length) return;
+  const latest=entries[0], prev=entries[1]||null;
+  if(prev){ const pm={}; prev.kw.forEach(k=>{pm[k.keyword]=k.position;}); latest.kw.forEach(k=>{k.prevPosition=pm[k.keyword]!=null?pm[k.keyword]:null;}); }
+  S.ser.kw=latest.kw; S.ser.siteUrl=latest.siteUrl||''; S.ser.engineInfo=latest.engineInfo||'';
+  S.ser.filter='all'; S.ser.sort='position'; S.ser.dir='asc';
+  const el=document.getElementById('out-ser');
+  el.innerHTML=`<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:13px;color:#15803d">
+    <i class="ti ti-check"></i> <strong>${latest.month}</strong> のデータを保存しました${prev?` — <strong>${prev.month}</strong> との前月比を表示中`:''}
+  </div>`;
+  renderAnalysis('ser', el);
+}
+
+function renderTrendAnalysis(client) {
+  const history = getSerHistory();
+  const entries = Object.entries(history).filter(([k])=>history[k].client===client).map(([k,v])=>v).sort((a,b)=>a.month.localeCompare(b.month));
+  if(entries.length<2){ alert('トレンド分析には2ヶ月以上のデータが必要です。'); return; }
+  const months=entries.map(e=>e.month);
+  const latest=entries[entries.length-1], prev=entries[entries.length-2];
+  const prevMap={},latestMap={};
+  prev.kw.forEach(k=>prevMap[k.keyword]=k.position);
+  latest.kw.forEach(k=>latestMap[k.keyword]=k.position);
+  const rising=latest.kw.filter(k=>prevMap[k.keyword]&&prevMap[k.keyword]>k.position&&k.position<=100).sort((a,b)=>(prevMap[b.keyword]-b.position)-(prevMap[a.keyword]-a.position)).slice(0,10);
+  const falling=latest.kw.filter(k=>prevMap[k.keyword]&&prevMap[k.keyword]<k.position).sort((a,b)=>(a.position-prevMap[a.keyword])-(b.position-prevMap[b.keyword])).slice(0,10).reverse();
+  const newIn=latest.kw.filter(k=>!prevMap[k.keyword]&&k.position<=100).slice(0,10);
+  const dropped=prev.kw.filter(k=>!latestMap[k.keyword]||latestMap[k.keyword]>100).slice(0,10);
+  const avgByMonth=entries.map(e=>({month:e.month,avg:(e.kw.reduce((s,k)=>s+Math.min(k.position,100),0)/e.kw.length).toFixed(1)}));
+  const el=document.getElementById('out-ser');
+  el.innerHTML=`<div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:4px"><i class="ti ti-chart-line" style="color:#3366ff"></i> トレンド分析 — ${esc(client)}</h3>
+    <p style="font-size:12px;color:#aaa;margin-bottom:16px">${months[0]} 〜 ${months[months.length-1]}（${months.length}ヶ月分）</p>
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">平均順位の推移</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;height:80px">
+        ${avgByMonth.map(m=>{const h=Math.max(8,Math.min(70,70-(parseFloat(m.avg)/100)*70));return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <div style="font-size:10px;font-weight:700;color:#3366ff">${m.avg}</div>
+          <div style="width:100%;background:#3366ff;border-radius:3px 3px 0 0;height:${h}px"></div>
+          <div style="font-size:9px;color:#aaa">${m.month.slice(5)}月</div>
+        </div>`;}).join('')}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:16px">
+      <div style="border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;background:#f0fdf4">
+        <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:8px">📈 急上昇 TOP10</div>
+        ${rising.length?rising.map(k=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #e8ffe8"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${esc(k.keyword)}</span><span style="color:#15803d;font-weight:600;white-space:nowrap">${prevMap[k.keyword]}→${k.position}位 ↑${prevMap[k.keyword]-k.position}</span></div>`).join(''):'<div style="font-size:12px;color:#aaa">なし</div>'}
+      </div>
+      <div style="border:1px solid #fecdd3;border-radius:8px;padding:12px 14px;background:#fff1f2">
+        <div style="font-size:12px;font-weight:700;color:#be123c;margin-bottom:8px">📉 急下降 TOP10</div>
+        ${falling.length?falling.map(k=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #ffe0e0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${esc(k.keyword)}</span><span style="color:#be123c;font-weight:600;white-space:nowrap">${prevMap[k.keyword]}→${k.position}位 ↓${k.position-prevMap[k.keyword]}</span></div>`).join(''):'<div style="font-size:12px;color:#aaa">なし</div>'}
+      </div>
+      <div style="border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;background:#eff6ff">
+        <div style="font-size:12px;font-weight:700;color:#1d4ed8;margin-bottom:8px">🆕 新規圏内</div>
+        ${newIn.length?newIn.map(k=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #e0eeff"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">${esc(k.keyword)}</span><span style="color:#1d4ed8;font-weight:600">${k.position}位</span></div>`).join(''):'<div style="font-size:12px;color:#aaa">なし</div>'}
+      </div>
+      <div style="border:1px solid #fde68a;border-radius:8px;padding:12px 14px;background:#fffbeb">
+        <div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:8px">⚠️ 圏外転落</div>
+        ${dropped.length?dropped.map(k=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #fef3c7"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">${esc(k.keyword)}</span><span style="color:#b45309;font-weight:600">${prevMap[k.keyword]}位→圏外</span></div>`).join(''):'<div style="font-size:12px;color:#aaa">なし</div>'}
+      </div>
+    </div>
+    <div class="abar">
+      <button class="btn btn-g btn-sm" onclick="dlTrendCSV('${esc(client)}')"><i class="ti ti-download"></i> トレンドCSV出力</button>
+    </div>
+  </div>`;
+}
+
+function dlTrendCSV(client) {
+  const history=getSerHistory();
+  const entries=Object.entries(history).filter(([k])=>history[k].client===client).map(([k,v])=>v).sort((a,b)=>a.month.localeCompare(b.month));
+  if(!entries.length) return;
+  const months=entries.map(e=>e.month);
+  const kwSet=new Set(); entries.forEach(e=>e.kw.forEach(k=>kwSet.add(k.keyword)));
+  const rows=[['キーワード',...months]];
+  kwSet.forEach(kw=>{ const row=[kw]; entries.forEach(e=>{ const f=e.kw.find(k=>k.keyword===kw); row.push(f?f.position:'圏外'); }); rows.push(row); });
+  const csv='\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv;charset=utf-8'}),`ser-trend-${client}-${today()}.csv`);
 }
 
 function csvsplit(line, sep) {
