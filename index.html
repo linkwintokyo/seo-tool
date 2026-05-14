@@ -9,6 +9,21 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
+/* ===== パスワード画面 ===== */
+#pw-screen{position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+#pw-box{background:#fff;border-radius:16px;padding:40px 36px;width:100%;max-width:380px;text-align:center}
+#pw-box .logo{font-size:36px;margin-bottom:12px}
+#pw-box h2{font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:6px}
+#pw-box p{font-size:13px;color:#aaa;margin-bottom:24px}
+#pw-box input{width:100%;padding:12px 16px;border:2px solid #e4e7f0;border-radius:10px;font-size:16px;text-align:center;letter-spacing:3px;outline:none;transition:border .2s;margin-bottom:12px}
+#pw-box input:focus{border-color:#3366ff}
+#pw-box input.shake{animation:shake .4s ease}
+#pw-box input.wrong{border-color:#dc2626;background:#fff1f2}
+#pw-submit{width:100%;padding:13px;background:#3366ff;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s}
+#pw-submit:hover{background:#254edb}
+#pw-err{color:#dc2626;font-size:13px;margin-top:10px;min-height:18px}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+</style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Hiragino Sans,sans-serif;font-size:15px;line-height:1.6;background:#f4f6fb;color:#1a1a2e;min-height:100vh}
 .app{max-width:1200px;margin:0 auto;padding:28px 20px}
@@ -130,6 +145,15 @@ tr:hover td{background:#f8f9ff}
 .btn-o{background:#fff;color:#444;border:1px solid #dde}.btn-o:hover{background:#f5f6fa}
 .btn-sm{padding:6px 12px;font-size:12px}
 .btn-danger{background:#fff;color:#dc2626;border:1px solid #fca5a5}.btn-danger:hover{background:#fff1f2}
+.ga4-flag-red{background:#fff1f2;color:#be123c;border:1px solid #fecdd3;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;display:inline-block}
+.ga4-flag-yellow{background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;display:inline-block}
+.ga4-flag-green{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;display:inline-block}
+.ga4-summary{background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:16px 20px;margin-bottom:20px}
+.ga4-summary h3{font-size:13px;font-weight:700;color:#e37400;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.ga4-bad-list{display:flex;flex-direction:column;gap:6px}
+.ga4-bad-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff8f8;border-radius:6px;border:1px solid #fecdd3;font-size:13px}
+.ga4-bad-item .page{flex:1;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ga4-bad-item .metrics{color:#888;font-size:12px;white-space:nowrap}
 .abar{display:flex;gap:8px;flex-wrap:wrap;padding:14px 0}
 
 /* Loading */
@@ -160,6 +184,19 @@ tr:hover td{background:#f8f9ff}
 </style>
 </head>
 <body>
+<div id="pw-screen">
+  <div id="pw-box">
+    <div class="logo">🔐</div>
+    <h2>SEO順位分析ツール</h2>
+    <p>アクセスにはパスワードが必要です</p>
+    <input type="password" id="pw-input" placeholder="パスワードを入力"
+      onkeydown="if(event.key==='Enter')checkPw()">
+    <button id="pw-submit" onclick="checkPw()">ログイン</button>
+    <div id="pw-err"></div>
+  </div>
+</div>
+
+<div id="main-app" style="display:none">
 <div class="app">
 
   <!-- Header -->
@@ -184,6 +221,7 @@ tr:hover td{background:#f8f9ff}
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('gsc')"><i class="ti ti-brand-google"></i> Search Console</button>
+    <button class="tab-btn" onclick="switchTab('ga4')"><i class="ti ti-chart-line"></i> GA4分析</button>
     <button class="tab-btn" onclick="switchTab('ser')"><i class="ti ti-trending-up"></i> SE Ranking</button>
   </div>
 
@@ -206,6 +244,23 @@ tr:hover td{background:#f8f9ff}
     <div id="gsc-data"></div>
   </div>
 
+  <!-- ===== GA4 Tab ===== -->
+  <div id="panel-ga4" class="tab-panel">
+    <div id="ga4-auth">
+      <div class="gauth-area">
+        <h3><i class="ti ti-chart-line" style="color:#e37400"></i> Google Analytics 4 と連携</h3>
+        <p>Googleアカウントでログインして、GA4のデータを直接取得します。<br>読み取り専用アクセスのみです。</p>
+        <button class="google-btn" onclick="doGoogleLoginGA4()">
+          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E" alt="Google">
+          Googleでログイン
+        </button>
+        <p style="font-size:12px;color:#ccc;margin-top:14px;margin-bottom:0"><i class="ti ti-lock" style="font-size:11px"></i> 読み取り専用 · データは端末内のみで処理</p>
+      </div>
+    </div>
+    <div id="ga4-user" style="display:none"></div>
+    <div id="ga4-data"></div>
+  </div>
+
   <!-- ===== SE Ranking Tab ===== -->
   <div id="panel-ser" class="tab-panel">
     <div class="upload-hint">
@@ -226,6 +281,7 @@ tr:hover td{background:#f8f9ff}
   </div>
 
 </div><!-- /app -->
+</div><!-- /main-app -->
 
 <!-- Settings Modal -->
 <div id="modal-settings" class="modal-bg" style="display:none" onclick="if(event.target===this)closeSettings()">
@@ -236,6 +292,7 @@ tr:hover td{background:#f8f9ff}
       <div><span class="step-num">1</span> <strong><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></strong> を開く</div>
       <div><span class="step-num">2</span> 新しいプロジェクトを作成（または既存を選択）</div>
       <div><span class="step-num">3</span> 「APIとサービス」→「ライブラリ」→ <strong>「Google Search Console API」</strong> を有効化</div>
+      <div><span class="step-num">＋</span> GA4も使う場合：<strong>「Google Analytics Data API」</strong> と <strong>「Google Analytics Admin API」</strong> も有効化</div>
       <div><span class="step-num">4</span> 「APIとサービス」→「認証情報」→「認証情報を作成」→ <strong>「OAuth 2.0 クライアントID」</strong></div>
       <div><span class="step-num">5</span> アプリケーションの種類：<strong>「ウェブアプリケーション」</strong></div>
       <div><span class="step-num">6</span> 「承認済みのJavaScriptオリジン」に <strong>このページのURL</strong>（例: <code>https://your-tool.pages.dev</code>）を追加</div>
@@ -252,6 +309,38 @@ tr:hover td{background:#f8f9ff}
 
 <script>
 /* ============================================================
+   パスワード認証 ← ここを変更するとパスワードが変わります
+   ============================================================ */
+const TOOL_PASSWORD = 'linkwinseo2026';
+
+function checkPw() {
+  const input = document.getElementById('pw-input');
+  const err = document.getElementById('pw-err');
+  input.classList.remove('wrong','shake');
+  if (input.value === TOOL_PASSWORD) {
+    sessionStorage.setItem('seo_auth', '1');
+    document.getElementById('pw-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+    err.textContent = '';
+  } else {
+    void input.offsetWidth; // reflow for animation reset
+    input.classList.add('wrong','shake');
+    err.textContent = 'パスワードが違います';
+    input.value = '';
+    input.focus();
+  }
+}
+
+window.addEventListener('load', () => {
+  if (sessionStorage.getItem('seo_auth') === '1') {
+    document.getElementById('pw-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+  } else {
+    setTimeout(() => document.getElementById('pw-input').focus(), 100);
+  }
+});
+
+/* ============================================================
    State
    ============================================================ */
 const S = {
@@ -264,17 +353,15 @@ const S = {
 };
 
 /* ============================================================
-   Init
+   Init (パスワード認証後の初期化はcheckPw/loadイベントで実施済み)
    ============================================================ */
 window.addEventListener('load', () => {
+  // パスワード認証チェック（上部で処理済み）
   const clientId = localStorage.getItem('seo_client_id') || '';
   if (!clientId) {
-    document.getElementById('setup-banner').style.display = 'flex';
+    const banner = document.getElementById('setup-banner');
+    if (banner) banner.style.display = 'flex';
   }
-  // Default dates
-  const end = new Date();
-  const start = new Date(); start.setDate(start.getDate() - 90);
-  // GSC library loads async — will init when needed
 });
 
 /* ============================================================
@@ -307,7 +394,7 @@ function doGoogleLogin() {
   if (!S.tokenClient) {
     S.tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      scope: 'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
       callback: onTokenReceived
     });
   }
@@ -353,6 +440,249 @@ function doLogout() {
   document.getElementById('gsc-user').style.display = 'none';
   document.getElementById('gsc-user').innerHTML = '';
   document.getElementById('gsc-data').innerHTML = '';
+  // GA4もリセット
+  document.getElementById('ga4-auth').style.display = 'block';
+  document.getElementById('ga4-user').style.display = 'none';
+  document.getElementById('ga4-user').innerHTML = '';
+  document.getElementById('ga4-data').innerHTML = '';
+}
+
+/* ============================================================
+   GA4 OAuth & API
+   ============================================================ */
+function doGoogleLoginGA4() {
+  const clientId = getClientId();
+  if (!clientId) { openSettings(); return; }
+  if (!window.google) { alert('Google認証ライブラリの読み込み中です。数秒後に再試行してください。'); return; }
+  if (!S.tokenClient) {
+    S.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      callback: onTokenReceivedGA4
+    });
+  }
+  S.tokenClient.requestAccessToken();
+}
+
+async function onTokenReceivedGA4(resp) {
+  if (resp.error) { document.getElementById('ga4-data').innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> ログインに失敗しました: ${resp.error}</div>`; return; }
+  S.accessToken = resp.access_token;
+  try {
+    const uRes = await gFetch('https://www.googleapis.com/oauth2/v2/userinfo');
+    S.user = uRes;
+    showGA4UserBar(uRes);
+  } catch(e) {}
+  loadGA4Properties();
+}
+
+function showGA4UserBar(user) {
+  const initials = (user.name || user.email || 'U').slice(0,1).toUpperCase();
+  document.getElementById('ga4-auth').style.display = 'none';
+  document.getElementById('ga4-user').style.display = 'block';
+  document.getElementById('ga4-user').innerHTML = `
+    <div class="user-bar">
+      <div class="avatar" style="background:#fff3e0;color:#e37400">${initials}</div>
+      <div><div class="uname">${esc(user.name||'')}</div><div class="uemail">${esc(user.email||'')}</div></div>
+      <div class="ml"><button class="btn btn-danger btn-sm" onclick="doLogout()"><i class="ti ti-logout"></i> ログアウト</button></div>
+    </div>`;
+}
+
+async function loadGA4Properties() {
+  const el = document.getElementById('ga4-data');
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>GA4プロパティを取得中...</p></div>';
+  try {
+    const data = await gFetch('https://analyticsadmin.googleapis.com/v1beta/accountSummaries');
+    const props = [];
+    (data.accountSummaries || []).forEach(acc => {
+      (acc.propertySummaries || []).forEach(p => {
+        if (p.propertyType !== 'PROPERTY_TYPE_SUBPROPERTY') {
+          props.push({ id: p.property.replace('properties/',''), name: p.displayName });
+        }
+      });
+    });
+    if (!props.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> GA4プロパティが見つかりませんでした。Google Analytics Admin APIが有効か確認してください。</div>'; return; }
+
+    const endDate = new Date();
+    const startDate = new Date(); startDate.setDate(startDate.getDate() - 30);
+    const fmt = d => d.toISOString().slice(0,10);
+
+    el.innerHTML = `
+      <div class="info-box" style="background:#fff3e0;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e">
+        <i class="ti ti-bulb"></i> <strong>要注意ページ</strong>：直帰率70%超・エンゲージメント時間30秒未満・エンゲージメント率30%未満のページを自動フラグします
+      </div>
+      <div class="site-select">
+        <label><i class="ti ti-chart-line"></i> GA4プロパティ：</label>
+        <select id="ga4-prop-sel">${props.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select>
+      </div>
+      <div class="date-row">
+        <label><i class="ti ti-calendar"></i> 期間：</label>
+        <input type="date" id="ga4-start" value="${fmt(startDate)}">
+        <span style="color:#aaa;font-size:13px">〜</span>
+        <input type="date" id="ga4-end" value="${fmt(endDate)}">
+        <button class="btn btn-primary" onclick="fetchGA4Data()" style="background:#e37400">
+          <i class="ti ti-download"></i> データ取得
+        </button>
+      </div>
+      <div id="ga4-result"></div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> プロパティ取得失敗: ${e.message}<br><small>Google Cloud ConsoleでGoogle Analytics Admin APIを有効にしてください。</small></div>`;
+  }
+}
+
+async function fetchGA4Data() {
+  const propId = document.getElementById('ga4-prop-sel').value;
+  const startDate = document.getElementById('ga4-start').value;
+  const endDate = document.getElementById('ga4-end').value;
+  const el = document.getElementById('ga4-result');
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>GA4データを取得中...</p></div>';
+  try {
+    const body = JSON.stringify({
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'pagePath' }],
+      metrics: [
+        { name: 'sessions' },
+        { name: 'engagementRate' },
+        { name: 'averageSessionDuration' },
+        { name: 'screenPageViews' },
+        { name: 'bounceRate' }
+      ],
+      orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+      limit: 5000
+    });
+    const data = await gFetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, { method:'POST', body });
+    if (!data.rows || !data.rows.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> データが見つかりませんでした。</div>'; return; }
+    renderGA4(data.rows, el);
+  } catch(e) {
+    el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> データ取得失敗: ${e.message}<br><small>Google Analytics Data APIをGoogle Cloud Consoleで有効にしてください。</small></div>`;
+  }
+}
+
+function getReactionLevel(engRate, avgDur, bounceRate, sessions) {
+  if (sessions < 5) return null; // セッション少なすぎは判定しない
+  if (engRate < 0.3 || bounceRate > 0.7 || avgDur < 20) return 'red';
+  if (engRate < 0.5 || avgDur < 40) return 'yellow';
+  return 'green';
+}
+
+function reactionBadge(level) {
+  if (!level) return '<span style="color:#ccc;font-size:12px">−</span>';
+  if (level === 'red') return '<span class="ga4-flag-red">🔴 要注意</span>';
+  if (level === 'yellow') return '<span class="ga4-flag-yellow">🟡 注意</span>';
+  return '<span class="ga4-flag-green">✅ 良好</span>';
+}
+
+function renderGA4(rows, el) {
+  const pages = rows.map(r => {
+    const path = r.dimensionValues[0].value;
+    const sessions = parseInt(r.metricValues[0].value) || 0;
+    const engRate = parseFloat(r.metricValues[1].value) || 0;
+    const avgDur = parseFloat(r.metricValues[2].value) || 0;
+    const pvs = parseInt(r.metricValues[3].value) || 0;
+    const bounceRate = parseFloat(r.metricValues[4].value) || 0;
+    const level = getReactionLevel(engRate, avgDur, bounceRate, sessions);
+    return { path, sessions, engRate, avgDur, pvs, bounceRate, level };
+  });
+
+  const totalSessions = pages.reduce((s,p) => s+p.sessions, 0);
+  const totalPVs = pages.reduce((s,p) => s+p.pvs, 0);
+  const badPages = pages.filter(p => p.level === 'red');
+  const warnPages = pages.filter(p => p.level === 'yellow');
+  const avgEng = pages.filter(p=>p.sessions>=5).reduce((s,p,_,a) => s+p.engRate/a.length, 0);
+
+  let html = `
+  <div class="metrics">
+    <div class="mc"><div class="lb">総セッション</div><div class="val">${totalSessions.toLocaleString()}</div></div>
+    <div class="mc"><div class="lb">総PV</div><div class="val">${totalPVs.toLocaleString()}</div></div>
+    <div class="mc ${avgEng<0.4?'orange':'green'}"><div class="lb">平均エンゲージメント率</div><div class="val">${(avgEng*100).toFixed(1)}%</div></div>
+    <div class="mc red" style="--val-color:#dc2626"><div class="lb">要注意ページ</div><div class="val" style="color:#dc2626">${badPages.length}</div><div class="sub">ページ</div></div>
+    <div class="mc yellow" style=""><div class="lb">注意ページ</div><div class="val" style="color:#ca8a04">${warnPages.length}</div><div class="sub">ページ</div></div>
+  </div>`;
+
+  if (badPages.length) {
+    html += `<div class="ga4-summary">
+      <h3><i class="ti ti-alert-triangle"></i> 要注意ページ（直帰率70%超 または エンゲージメント率30%未満）</h3>
+      <div class="ga4-bad-list">
+        ${badPages.slice(0,10).map(p=>`
+          <div class="ga4-bad-item">
+            <i class="ti ti-alert-circle" style="color:#dc2626;flex-shrink:0"></i>
+            <span class="page">${esc(p.path)}</span>
+            <span class="metrics">直帰率 ${(p.bounceRate*100).toFixed(0)}% / エンゲージ ${(p.engRate*100).toFixed(0)}% / 滞在 ${Math.round(p.avgDur)}秒 / ${p.sessions}セッション</span>
+          </div>`).join('')}
+        ${badPages.length>10?`<div style="font-size:12px;color:#aaa;padding:6px 12px">他 ${badPages.length-10} ページ（表下に全件表示）</div>`:''}
+      </div>
+    </div>`;
+  }
+
+  html += `
+  <div class="controls">
+    <span style="font-size:13px;color:#555">全 ${pages.length} ページ</span>
+    <div class="ml-auto">
+      <select class="sort-sel" id="ga4-sort" onchange="sortGA4Table(this.value)">
+        <option value="sessions">セッション数順</option>
+        <option value="bounceRate">直帰率（高い順）</option>
+        <option value="engRate">エンゲージメント率（低い順）</option>
+        <option value="avgDur">滞在時間（短い順）</option>
+        <option value="pvs">PV数順</option>
+      </select>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="ga4-table">
+      <thead><tr>
+        <th>ページ</th>
+        <th>反応</th>
+        <th>セッション</th>
+        <th>直帰率</th>
+        <th>エンゲージ率</th>
+        <th>平均滞在時間</th>
+        <th>PV</th>
+      </tr></thead>
+      <tbody>${renderGA4Rows(pages)}</tbody>
+    </table>
+  </div>
+  <div class="abar">
+    <button class="btn btn-sm" style="background:#e37400;color:#fff" onclick="dlGA4CSV()"><i class="ti ti-download"></i> CSV出力</button>
+    <button class="btn btn-o btn-sm" onclick="window.print()"><i class="ti ti-printer"></i> 印刷</button>
+  </div>`;
+
+  el.innerHTML = html;
+  window._ga4pages = pages;
+}
+
+function renderGA4Rows(pages) {
+  return pages.map(p => `<tr>
+    <td style="font-size:12px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(p.path)}">${esc(p.path)}</td>
+    <td>${reactionBadge(p.level)}</td>
+    <td>${p.sessions.toLocaleString()}</td>
+    <td style="color:${p.bounceRate>0.7?'#dc2626':p.bounceRate>0.5?'#ca8a04':'#16a34a'};font-weight:600">${(p.bounceRate*100).toFixed(1)}%</td>
+    <td style="color:${p.engRate<0.3?'#dc2626':p.engRate<0.5?'#ca8a04':'#16a34a'};font-weight:600">${(p.engRate*100).toFixed(1)}%</td>
+    <td style="color:${p.avgDur<30?'#dc2626':p.avgDur<60?'#ca8a04':'#333'}">${Math.round(p.avgDur)}秒</td>
+    <td>${p.pvs.toLocaleString()}</td>
+  </tr>`).join('');
+}
+
+function sortGA4Table(by) {
+  if (!window._ga4pages) return;
+  const sorted = [...window._ga4pages].sort((a,b) => {
+    if (by==='sessions') return b.sessions - a.sessions;
+    if (by==='bounceRate') return b.bounceRate - a.bounceRate;
+    if (by==='engRate') return a.engRate - b.engRate;
+    if (by==='avgDur') return a.avgDur - b.avgDur;
+    if (by==='pvs') return b.pvs - a.pvs;
+    return 0;
+  });
+  document.querySelector('#ga4-table tbody').innerHTML = renderGA4Rows(sorted);
+}
+
+function dlGA4CSV() {
+  if (!window._ga4pages) return;
+  const rows = [['ページ','反応レベル','セッション','直帰率(%)','エンゲージメント率(%)','平均滞在時間(秒)','PV']];
+  for (const p of window._ga4pages) {
+    const lvl = p.level==='red'?'要注意':p.level==='yellow'?'注意':p.level==='green'?'良好':'−';
+    rows.push([p.path, lvl, p.sessions, (p.bounceRate*100).toFixed(1), (p.engRate*100).toFixed(1), Math.round(p.avgDur), p.pvs]);
+  }
+  const csv = '\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv;charset=utf-8'}),`ga4-${today()}.csv`);
 }
 
 /* ============================================================
@@ -449,9 +779,12 @@ function proc(file, tab) {
   const r = new FileReader();
   r.onload = e => {
     try {
-      const kw = parseSER(e.target.result);
-      if (!kw.length) { showTabErr(tab, 'CSVを解析できませんでした。フォーマットを確認してください。'); return; }
-      S[tab].kw = kw; S[tab].filter = 'all'; S[tab].sort = 'position'; S[tab].dir = 'asc';
+      const result = parseSER(e.target.result);
+      if (!result.kw.length) { showTabErr(tab, 'CSVを解析できませんでした。フォーマットを確認してください。'); return; }
+      S[tab].kw = result.kw;
+      S[tab].siteUrl = result.siteUrl || '';
+      S[tab].engineInfo = result.engineInfo || '';
+      S[tab].filter = 'all'; S[tab].sort = 'position'; S[tab].dir = 'asc';
       renderAnalysis(tab, document.getElementById('out-'+tab));
     } catch(err) { showTabErr(tab, '読み込みエラー: ' + err.message); }
   };
@@ -472,8 +805,11 @@ function cl(s) { return String(s||'').replace(/^"|"$/g,'').trim(); }
 
 function parseSER(text) {
   const lines = text.split('\n').map(l=>l.trim()).filter(l=>l);
-  if (!lines.length) return [];
+  if (!lines.length) return { kw:[], siteUrl:'', engineInfo:'' };
   const sep = lines[0].includes('\t') ? '\t' : ',';
+
+  // 1行目からエンジン・ロケーション情報を抽出（例: "Google Japan (前橋), UI言語: 日本語"）
+  const engineInfo = cl(lines[0]);
 
   // ヘッダー行を探す（キーワード列がある行）
   let hi = 0;
@@ -483,25 +819,27 @@ function parseSER(text) {
   }
   const hdr = csvsplit(lines[hi], sep).map(h=>cl(h).toLowerCase());
 
+  // ランディングURLからサイトドメインを抽出するヘルパー
+  function extractDomain(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); } catch(e) { return ''; }
+  }
+
   // 日付別詳細フォーマット検出（YYYY-MM-DD形式の列があるか）
   const isDetailed = hdr.some(h => /^\d{4}-\d{2}-\d{2}$/.test(h));
 
   if (isDetailed) {
-    // 詳細フォーマット: キーワード,Url,検索ボリューム,クリック数,[日付,変動,URL]×n
     const ki = hdr.findIndex(h=>h.includes('キーワード')||h.includes('keyword'));
     const vi = hdr.findIndex(h=>h.includes('ボリューム')||h.includes('volume'));
     const clki = hdr.findIndex(h=>h.includes('クリック')||h.includes('click'));
-    // 日付列の開始インデックスを探す
     const firstDateIdx = hdr.findIndex(h => /^\d{4}-\d{2}-\d{2}$/.test(h));
-    // 日付グループ数: (全列数 - firstDateIdx) / 3
     const res = [];
+    const domainCount = {};
     for (let i = hi + 1; i < lines.length; i++) {
       const cells = csvsplit(lines[i], sep).map(cl);
       if (!cells[ki]) continue;
       const totalCols = cells.length;
       const numGroups = Math.floor((totalCols - firstDateIdx) / 3);
       if (numGroups < 1) continue;
-      // 最新順位 = 最後のグループの最初の列
       const lastPosIdx = firstDateIdx + (numGroups - 1) * 3;
       const prevPosIdx = numGroups >= 2 ? firstDateIdx + (numGroups - 2) * 3 : -1;
       const landingIdx = lastPosIdx + 2;
@@ -512,9 +850,14 @@ function parseSER(text) {
       const vol = vi>=0 ? parseInt((cells[vi]||'0').replace(/,/g,''))||0 : 0;
       const clks = clki>=0 ? parseInt((cells[clki]||'0').replace(/,/g,''))||0 : 0;
       const url = landingIdx < cells.length ? cells[landingIdx] : '';
+      // ドメイン集計
+      const d = extractDomain(url);
+      if (d) domainCount[d] = (domainCount[d]||0) + 1;
       res.push({ keyword:cells[ki], position:pos, prevPosition:prev, volume:vol, clicks:clks, impressions:0, ctr:0, landingPage:url });
     }
-    return res.filter(r=>r.keyword).sort((a,b)=>a.position-b.position);
+    // 最多ドメインをサイトURLとして返す
+    const siteUrl = Object.entries(domainCount).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+    return { kw: res.filter(r=>r.keyword).sort((a,b)=>a.position-b.position), siteUrl, engineInfo };
   }
 
   // 通常フォーマット（サマリーCSV）
@@ -524,6 +867,7 @@ function parseSER(text) {
   const vi = hdr.findIndex(h=>h.includes('volume')||h.includes('ボリューム'));
   const ui = hdr.findIndex(h=>h.includes('landing')||h.includes('url')||h.includes('ページ'));
   const res = [];
+  const domainCount = {};
   for (let i = hi + 1; i < lines.length; i++) {
     const cells = csvsplit(lines[i], sep).map(cl);
     if (!cells[ki]) continue;
@@ -531,9 +875,13 @@ function parseSER(text) {
     const pos = (pr==='-'||pr===''||/n\/a/i.test(pr)||pr==='0') ? 101 : parseFloat(pr)||101;
     const prevr = pi2>=0 ? cells[pi2]||'' : '';
     const prev = (prevr==='-'||prevr===''||/n\/a/i.test(prevr)) ? null : parseFloat(prevr)||null;
-    res.push({ keyword:cells[ki], position:pos, prevPosition:prev, volume:vi>=0?(parseInt((cells[vi]||'0').replace(/,/g,''))||0):0, clicks:0, impressions:0, ctr:0, landingPage:ui>=0?(cells[ui]||''):'' });
+    const lpUrl = ui>=0?(cells[ui]||''):'';
+    const d = extractDomain(lpUrl);
+    if (d) domainCount[d] = (domainCount[d]||0) + 1;
+    res.push({ keyword:cells[ki], position:pos, prevPosition:prev, volume:vi>=0?(parseInt((cells[vi]||'0').replace(/,/g,''))||0):0, clicks:0, impressions:0, ctr:0, landingPage:lpUrl });
   }
-  return res.filter(r=>r.keyword).sort((a,b)=>a.position-b.position);
+  const siteUrl = Object.entries(domainCount).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+  return { kw: res.filter(r=>r.keyword).sort((a,b)=>a.position-b.position), siteUrl, engineInfo };
 }
 
 /* ============================================================
@@ -541,6 +889,8 @@ function parseSER(text) {
    ============================================================ */
 function renderAnalysis(tab, el) {
   const kw = S[tab].kw;
+  const siteUrl = S[tab].siteUrl || '';
+  const engineInfo = S[tab].engineInfo || '';
   const c1=kw.filter(k=>k.position<=3).length, c4=kw.filter(k=>k.position>=4&&k.position<=10).length;
   const c11=kw.filter(k=>k.position>=11&&k.position<=30).length, c31=kw.filter(k=>k.position>=31&&k.position<=50).length;
   const c51=kw.filter(k=>k.position>=51&&k.position<=100).length, cout=kw.filter(k=>k.position>100).length;
@@ -548,7 +898,19 @@ function renderAnalysis(tab, el) {
   const totalClicks = kw.reduce((s,k)=>s+k.clicks, 0);
   const totalImpressions = kw.reduce((s,k)=>s+k.impressions, 0);
 
+  // サイト情報バナー（SE Rankingの場合のみ）
+  const siteBanner = siteUrl ? `
+    <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:12px 18px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:4px 14px">
+        <i class="ti ti-world" style="color:#3366ff;font-size:14px"></i>
+        <span style="font-size:13px;font-weight:700;color:#1d4ed8">${esc(siteUrl)}</span>
+      </div>
+      <span style="font-size:12px;color:#aaa">を分析中</span>
+      ${engineInfo ? `<span style="font-size:11px;color:#ccc;margin-left:auto">${esc(engineInfo)}</span>` : ''}
+    </div>` : '';
+
   el.innerHTML = `
+  ${siteBanner}
   <div class="metrics">
     <div class="mc"><div class="lb">総KW数</div><div class="val">${kw.length.toLocaleString()}</div></div>
     <div class="mc blue"><div class="lb">平均順位</div><div class="val">${avg}</div><div class="sub">位</div></div>
@@ -681,7 +1043,7 @@ function setF(tab, val, el) {
 }
 
 function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['gsc','ser'][i]===tab));
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['gsc','ga4','ser'][i]===tab));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+tab).classList.add('active');
 }
