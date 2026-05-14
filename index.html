@@ -490,8 +490,9 @@ async function loadGA4Properties() {
     if (!props.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> GA4プロパティが見つかりませんでした。Google Analytics Admin APIが有効か確認してください。</div>'; return; }
     S.ga4Props = props;
 
-    const endDate = new Date();
-    const startDate = new Date(); startDate.setDate(startDate.getDate() - 30);
+    const now2 = new Date();
+    const startDate = new Date(now2.getFullYear(), now2.getMonth() - 1, 1);
+    const endDate = new Date(now2.getFullYear(), now2.getMonth(), 0);
     const fmt = d => d.toISOString().slice(0,10);
 
     el.innerHTML = `
@@ -706,8 +707,9 @@ async function loadGSCSites() {
     const sites = (data.siteEntry || []).filter(s => s.permissionLevel !== 'siteUnverifiedUser');
     if (!sites.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> Search Consoleに登録済みのサイトが見つかりませんでした。</div>'; return; }
     S.gscSites = sites;
-    const endDate = new Date();
-    const startDate = new Date(); startDate.setDate(startDate.getDate() - 90);
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endDate = new Date(now.getFullYear(), now.getMonth(), 0);
     const fmt = d => d.toISOString().slice(0,10);
 
     el.innerHTML = `
