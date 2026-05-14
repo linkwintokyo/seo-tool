@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEO順位分析ツール</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Hiragino Sans,sans-serif;font-size:15px;line-height:1.6;background:#f4f6fb;color:#1a1a2e;min-height:100vh}
+.app{max-width:1200px;margin:0 auto;padding:28px 20px}
+
+/* Header */
+.header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:12px;flex-wrap:wrap}
+.header h1{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px}
+.ver{background:#3366ff;color:#fff;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600}
+.header p{font-size:13px;color:#888;margin-top:4px}
+.header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+
+/* Setup badge / settings */
+.setup-required{background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;display:flex;align-items:flex-start;gap:8px}
+.setup-required strong{display:block;margin-bottom:2px}
+
+/* Tabs */
+.tabs{display:flex;border-bottom:2px solid #e4e7f0;margin-bottom:24px}
+.tab-btn{padding:10px 22px;font-size:14px;font-weight:500;border:none;background:none;cursor:pointer;color:#aaa;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;display:flex;align-items:center;gap:7px}
+.tab-btn.active{color:#3366ff;border-bottom-color:#3366ff}
+.tab-btn:hover:not(.active){color:#555}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Google login area */
+.gauth-area{background:#fff;border:1px solid #e4e7f0;border-radius:12px;padding:32px;text-align:center;margin-bottom:20px}
+.gauth-area h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.gauth-area p{font-size:13px;color:#888;margin-bottom:20px}
+.google-btn{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1.5px solid #dde;border-radius:8px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;color:#333}
+.google-btn:hover{border-color:#3366ff;background:#f8f9ff;box-shadow:0 2px 8px rgba(51,102,255,.12)}
+.google-btn img{width:20px;height:20px}
+.google-btn:disabled{opacity:.5;cursor:not-allowed}
+.user-bar{background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.user-bar .avatar{width:36px;height:36px;border-radius:50%;background:#e8eeff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#3366ff;flex-shrink:0}
+.user-bar .uname{font-weight:600;font-size:14px}
+.user-bar .uemail{font-size:12px;color:#aaa}
+.user-bar .ml{margin-left:auto}
+.site-select{display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.site-select label{font-size:13px;color:#555;font-weight:600;white-space:nowrap}
+.site-select select{flex:1;min-width:200px;padding:9px 12px;border:1.5px solid #dde;border-radius:8px;font-size:14px;background:#fff;outline:none;cursor:pointer}
+.site-select select:focus{border-color:#3366ff}
+.date-row{display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.date-row label{font-size:13px;color:#555;font-weight:600;white-space:nowrap}
+.date-row input{padding:8px 12px;border:1.5px solid #dde;border-radius:8px;font-size:13px;outline:none}
+.date-row input:focus{border-color:#3366ff}
+
+/* Upload (SE Ranking) */
+.upload-hint{background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#555;line-height:1.8}
+.upload-hint strong{color:#1a1a2e}
+.upload-hint code{background:#f0f2fa;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:12px;color:#3366ff}
+.upload-area{border:2px dashed #cdd2e8;border-radius:12px;padding:36px;text-align:center;cursor:pointer;transition:all .2s;background:#fff;margin-bottom:20px}
+.upload-area:hover,.upload-area.drag{border-color:#3366ff;background:#f0f4ff}
+.upload-area i.uico{font-size:32px;color:#c0c8e8;margin-bottom:10px;display:block}
+.upload-area p{color:#555;font-size:14px;font-weight:600}
+.upload-area small{color:#bbb;font-size:12px;display:block;margin-top:5px}
+input[type=file]{display:none}
+
+/* Metrics */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-bottom:24px}
+.mc{background:#fff;border-radius:10px;padding:16px 18px;border:1px solid #e4e7f0}
+.mc .lb{font-size:11px;color:#aaa;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-bottom:5px}
+.mc .val{font-size:26px;font-weight:700;line-height:1}
+.mc .sub{font-size:11px;color:#ccc;margin-top:3px}
+.mc.blue .val{color:#3366ff}
+.mc.green .val{color:#16a34a}
+.mc.yellow .val{color:#ca8a04}
+.mc.orange .val{color:#ea580c}
+
+/* Chart */
+.chart-card{background:#fff;border-radius:10px;padding:20px 22px;border:1px solid #e4e7f0;margin-bottom:22px}
+.chart-card h3{font-size:12px;font-weight:700;color:#aaa;letter-spacing:.4px;text-transform:uppercase;margin-bottom:16px}
+
+/* Controls */
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;padding:12px 16px;background:#fff;border-radius:10px;border:1px solid #e4e7f0}
+.pills{display:flex;flex-wrap:wrap;gap:5px}
+.pill{padding:4px 11px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:all .15s;white-space:nowrap}
+.pa{background:#eef0f8;color:#555}.pa.on{border-color:#888}
+.p1{background:#dcfce7;color:#15803d}.p1.on{border-color:#15803d}
+.p4{background:#dbeafe;color:#1d4ed8}.p4.on{border-color:#1d4ed8}
+.p11{background:#fef9c3;color:#854d0e}.p11.on{border-color:#a16207}
+.p31{background:#ffedd5;color:#c2410c}.p31.on{border-color:#c2410c}
+.p51{background:#fee2e2;color:#b91c1c}.p51.on{border-color:#b91c1c}
+.ml-auto{margin-left:auto}
+select.sort-sel{padding:6px 10px;border:1px solid #e0e2ec;border-radius:7px;font-size:13px;background:#fff;cursor:pointer;outline:none;color:#444}
+
+/* Table */
+.table-wrap{background:#fff;border-radius:10px;border:1px solid #e4e7f0;overflow-x:auto;margin-bottom:18px}
+table{width:100%;border-collapse:collapse;min-width:680px}
+thead th{padding:10px 13px;font-size:11px;font-weight:700;color:#aaa;text-align:left;background:#f8f9fc;border-bottom:1px solid #e4e7f0;cursor:pointer;user-select:none;white-space:nowrap;letter-spacing:.3px;text-transform:uppercase}
+thead th:hover{color:#3366ff}
+thead th.sorted{color:#3366ff}
+td{padding:10px 13px;font-size:13px;border-bottom:1px solid #f2f4fa;vertical-align:top;color:#333}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8f9ff}
+.kw{font-weight:600;color:#1a1a2e}
+.kw-url{font-size:11px;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;display:block}
+.pb{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:22px;border-radius:6px;font-size:12px;font-weight:700;padding:0 6px}
+.b1{background:#dcfce7;color:#15803d}
+.b4{background:#dbeafe;color:#1d4ed8}
+.b11{background:#fef9c3;color:#854d0e}
+.b31{background:#ffedd5;color:#c2410c}
+.b51{background:#fee2e2;color:#b91c1c}
+.bout{background:#f3f4f6;color:#9ca3af}
+.tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:3px}
+.tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
+.tm{background:#dcfce7;color:#15803d}
+.tc{background:#fffbeb;color:#b45309}
+.tt{background:#eff6ff;color:#1d4ed8}
+.tl{background:#f0fdf4;color:#15803d}
+.te{background:#fdf4ff;color:#7e22ce}
+.tf{background:#fff1f2;color:#be123c}
+.nd{font-size:11px;color:#bbb;line-height:1.5}
+.du{color:#16a34a;font-weight:700;font-size:12px}
+.dd{color:#dc2626;font-weight:700;font-size:12px}
+
+/* Buttons */
+.btn{padding:8px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.btn-g{background:#16a34a;color:#fff}.btn-g:hover{background:#15803d}
+.btn-b{background:#3366ff;color:#fff}.btn-b:hover{background:#254edb}
+.btn-o{background:#fff;color:#444;border:1px solid #dde}.btn-o:hover{background:#f5f6fa}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-danger{background:#fff;color:#dc2626;border:1px solid #fca5a5}.btn-danger:hover{background:#fff1f2}
+.abar{display:flex;gap:8px;flex-wrap:wrap;padding:14px 0}
+
+/* Loading */
+.loading-box{text-align:center;padding:56px;background:#fff;border-radius:10px;border:1px solid #e4e7f0}
+.loading-box i.spin{font-size:28px;display:block;margin-bottom:12px;color:#3366ff;animation:spin 1s linear infinite}
+.loading-box p{color:#aaa;font-size:13px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:60px;color:#ccc}
+.empty i{font-size:36px;display:block;margin-bottom:10px}
+.err{background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:13px 16px;color:#be123c;font-size:13px;margin-bottom:16px;display:flex;align-items:flex-start;gap:8px}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:#fff;border-radius:14px;padding:28px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal h2{font-size:17px;font-weight:700;margin-bottom:6px}
+.modal p{font-size:13px;color:#777;margin-bottom:20px;line-height:1.7}
+.modal label{font-size:13px;font-weight:600;color:#333;display:block;margin-bottom:6px}
+.modal input[type=text]{width:100%;padding:10px 14px;border:1.5px solid #dde;border-radius:8px;font-size:14px;outline:none;font-family:monospace}
+.modal input[type=text]:focus{border-color:#3366ff}
+.modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
+.steps{background:#f8f9fc;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:12px;color:#555;line-height:2}
+.steps strong{color:#1a1a2e}
+.steps a{color:#3366ff}
+.step-num{background:#3366ff;color:#fff;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-right:4px}
+
+@media(max-width:600px){.metrics{grid-template-columns:repeat(2,1fr)}.header{flex-direction:column}}
+@media print{.controls,.abar,.tabs,.upload-area,.upload-hint,.btn,.gauth-area,.user-bar,.site-select,.date-row,.header-right{display:none!important}.tab-panel{display:block!important}body{background:#fff}.app{padding:0}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1><i class="ti ti-chart-arrows-vertical" style="color:#3366ff;font-size:22px"></i> SEO順位分析ツール <span class="ver">v1</span></h1>
+      <p>Googleでログインするだけ — データは外部に送信されません</p>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-o btn-sm" onclick="openSettings()"><i class="ti ti-settings"></i> 設定</button>
+    </div>
+  </div>
+
+  <div id="setup-banner" style="display:none" class="setup-required">
+    <i class="ti ti-alert-triangle" style="flex-shrink:0;margin-top:2px"></i>
+    <div>
+      <strong>初回セットアップが必要です</strong>
+      Google OAuth Client IDを設定してください。<a href="#" onclick="openSettings();return false" style="color:#856404;font-weight:600">設定を開く →</a>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('gsc')"><i class="ti ti-brand-google"></i> Search Console</button>
+    <button class="tab-btn" onclick="switchTab('ser')"><i class="ti ti-trending-up"></i> SE Ranking</button>
+  </div>
+
+  <!-- ===== GSC Tab ===== -->
+  <div id="panel-gsc" class="tab-panel active">
+    <div id="gsc-auth">
+      <div class="gauth-area">
+        <h3><i class="ti ti-brand-google" style="color:#ea4335"></i> Google Search Consoleと連携</h3>
+        <p>Googleアカウントでログインして、Search Consoleのデータを直接取得します。<br>読み取り専用アクセスのみです。</p>
+        <button class="google-btn" onclick="doGoogleLogin()" id="google-login-btn">
+          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E" alt="Google">
+          Googleでログイン
+        </button>
+        <p style="font-size:12px;color:#ccc;margin-top:14px;margin-bottom:0"><i class="ti ti-lock" style="font-size:11px"></i> 読み取り専用 · データは端末内のみで処理</p>
+      </div>
+    </div>
+    <div id="gsc-user" style="display:none">
+      <!-- ログイン後に表示 -->
+    </div>
+    <div id="gsc-data"></div>
+  </div>
+
+  <!-- ===== SE Ranking Tab ===== -->
+  <div id="panel-ser" class="tab-panel">
+    <div class="upload-hint">
+      <strong>📥 CSVの取得方法：</strong>
+      SE Ranking → プロジェクト → <code>順位チェック</code> → 右上 <code>エクスポート</code> → <code>CSV</code><br>
+      ゲストリンクで共有されたレポートでも同様に「エクスポート → CSV」からダウンロードできます。<br>
+      <span style="color:#aaa;font-size:12px">※ SE RankingのAPIアクセスは有料プランのみのため、CSV取り込み方式を採用しています。</span>
+    </div>
+    <div class="upload-area" id="drop-ser"
+      onclick="document.getElementById('fs').click()"
+      ondragover="dov(event,'drop-ser')" ondragleave="dlv('drop-ser')" ondrop="dop(event,'ser')">
+      <i class="ti ti-file-spreadsheet uico"></i>
+      <p>SE Ranking CSVをドロップ、またはクリックして選択</p>
+      <small>キーワード・順位・前回順位・検索ボリュームなどに対応</small>
+    </div>
+    <input type="file" id="fs" accept=".csv" onchange="lf(event,'ser')">
+    <div id="out-ser"></div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- Settings Modal -->
+<div id="modal-settings" class="modal-bg" style="display:none" onclick="if(event.target===this)closeSettings()">
+  <div class="modal">
+    <h2><i class="ti ti-settings" style="color:#3366ff"></i> 初回設定 — Google OAuth Client ID</h2>
+    <p>Google Search Console APIを使用するために、Google Cloud ConsoleでOAuthクライアントIDを作成してください。<strong>完全無料</strong>で利用できます。</p>
+    <div class="steps">
+      <div><span class="step-num">1</span> <strong><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></strong> を開く</div>
+      <div><span class="step-num">2</span> 新しいプロジェクトを作成（または既存を選択）</div>
+      <div><span class="step-num">3</span> 「APIとサービス」→「ライブラリ」→ <strong>「Google Search Console API」</strong> を有効化</div>
+      <div><span class="step-num">4</span> 「APIとサービス」→「認証情報」→「認証情報を作成」→ <strong>「OAuth 2.0 クライアントID」</strong></div>
+      <div><span class="step-num">5</span> アプリケーションの種類：<strong>「ウェブアプリケーション」</strong></div>
+      <div><span class="step-num">6</span> 「承認済みのJavaScriptオリジン」に <strong>このページのURL</strong>（例: <code>https://your-tool.pages.dev</code>）を追加</div>
+      <div><span class="step-num">7</span> 作成後に表示される <strong>クライアントID</strong> をコピーして下に貼り付け</div>
+    </div>
+    <label>Google OAuth クライアントID</label>
+    <input type="text" id="client-id-input" placeholder="XXXXXXXXXX-xxxxxxxxxxxx.apps.googleusercontent.com">
+    <div class="modal-actions">
+      <button class="btn btn-o" onclick="closeSettings()">キャンセル</button>
+      <button class="btn btn-b" onclick="saveClientId()"><i class="ti ti-check"></i> 保存して閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   State
+   ============================================================ */
+const S = {
+  gsc: { kw:[], sort:'position', dir:'asc', filter:'all' },
+  ser: { kw:[], sort:'position', dir:'asc', filter:'all' },
+  charts: {},
+  accessToken: null,
+  user: null,
+  tokenClient: null
+};
+
+/* ============================================================
+   Init
+   ============================================================ */
+window.addEventListener('load', () => {
+  const clientId = localStorage.getItem('seo_client_id') || '';
+  if (!clientId) {
+    document.getElementById('setup-banner').style.display = 'flex';
+  }
+  // Default dates
+  const end = new Date();
+  const start = new Date(); start.setDate(start.getDate() - 90);
+  // GSC library loads async — will init when needed
+});
+
+/* ============================================================
+   Settings Modal
+   ============================================================ */
+function openSettings() {
+  document.getElementById('client-id-input').value = localStorage.getItem('seo_client_id') || '';
+  document.getElementById('modal-settings').style.display = 'flex';
+}
+function closeSettings() { document.getElementById('modal-settings').style.display = 'none'; }
+function saveClientId() {
+  const val = document.getElementById('client-id-input').value.trim();
+  if (!val) { alert('クライアントIDを入力してください'); return; }
+  localStorage.setItem('seo_client_id', val);
+  document.getElementById('setup-banner').style.display = 'none';
+  closeSettings();
+  S.tokenClient = null; // reset so it re-inits with new ID
+}
+
+/* ============================================================
+   Google OAuth
+   ============================================================ */
+function getClientId() { return localStorage.getItem('seo_client_id') || ''; }
+
+function doGoogleLogin() {
+  const clientId = getClientId();
+  if (!clientId) { openSettings(); return; }
+  if (!window.google) { alert('Google認証ライブラリの読み込み中です。数秒後に再試行してください。'); return; }
+
+  if (!S.tokenClient) {
+    S.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      callback: onTokenReceived
+    });
+  }
+  S.tokenClient.requestAccessToken();
+}
+
+async function onTokenReceived(resp) {
+  if (resp.error) { showGSCError('ログインに失敗しました: ' + resp.error); return; }
+  S.accessToken = resp.access_token;
+
+  // Get user info
+  try {
+    const uRes = await gFetch('https://www.googleapis.com/oauth2/v2/userinfo');
+    S.user = uRes;
+    showUserBar(uRes);
+  } catch(e) { /* user info optional */ }
+
+  // Load sites
+  loadGSCSites();
+}
+
+function showUserBar(user) {
+  const initials = (user.name || user.email || 'U').slice(0,1).toUpperCase();
+  document.getElementById('gsc-auth').style.display = 'none';
+  document.getElementById('gsc-user').style.display = 'flex';
+  document.getElementById('gsc-user').innerHTML = `
+    <div class="user-bar">
+      <div class="avatar">${initials}</div>
+      <div>
+        <div class="uname">${esc(user.name || '')}</div>
+        <div class="uemail">${esc(user.email || '')}</div>
+      </div>
+      <div class="ml">
+        <button class="btn btn-danger btn-sm" onclick="doLogout()"><i class="ti ti-logout"></i> ログアウト</button>
+      </div>
+    </div>`;
+}
+
+function doLogout() {
+  S.accessToken = null; S.user = null; S.tokenClient = null;
+  S.gsc.kw = [];
+  document.getElementById('gsc-auth').style.display = 'block';
+  document.getElementById('gsc-user').style.display = 'none';
+  document.getElementById('gsc-user').innerHTML = '';
+  document.getElementById('gsc-data').innerHTML = '';
+}
+
+/* ============================================================
+   GSC API
+   ============================================================ */
+async function gFetch(url, options={}) {
+  const res = await fetch(url, {
+    ...options,
+    headers: { 'Authorization': 'Bearer ' + S.accessToken, 'Content-Type': 'application/json', ...(options.headers||{}) }
+  });
+  if (!res.ok) throw new Error(`API Error ${res.status}`);
+  return res.json();
+}
+
+async function loadGSCSites() {
+  const el = document.getElementById('gsc-data');
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>サイト一覧を取得中...</p></div>';
+  try {
+    const data = await gFetch('https://www.googleapis.com/webmasters/v3/sites');
+    const sites = (data.siteEntry || []).filter(s => s.permissionLevel !== 'siteUnverifiedUser');
+    if (!sites.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> Search Consoleに登録済みのサイトが見つかりませんでした。</div>'; return; }
+
+    const endDate = new Date();
+    const startDate = new Date(); startDate.setDate(startDate.getDate() - 90);
+    const fmt = d => d.toISOString().slice(0,10);
+
+    el.innerHTML = `
+      <div class="site-select">
+        <label><i class="ti ti-world"></i> サイトを選択：</label>
+        <select id="site-sel">${sites.map(s=>`<option value="${esc(s.siteUrl)}">${esc(s.siteUrl)}</option>`).join('')}</select>
+      </div>
+      <div class="date-row">
+        <label><i class="ti ti-calendar"></i> 期間：</label>
+        <input type="date" id="date-start" value="${fmt(startDate)}">
+        <span style="color:#aaa;font-size:13px">〜</span>
+        <input type="date" id="date-end" value="${fmt(endDate)}">
+        <button class="btn btn-b" onclick="fetchGSCData()"><i class="ti ti-download"></i> データ取得</button>
+      </div>
+      <div id="gsc-result"></div>`;
+  } catch(e) { showGSCError('サイト一覧の取得に失敗しました: ' + e.message); }
+}
+
+async function fetchGSCData() {
+  const siteUrl = document.getElementById('site-sel').value;
+  const startDate = document.getElementById('date-start').value;
+  const endDate = document.getElementById('date-end').value;
+  const el = document.getElementById('gsc-result');
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>キーワードデータを取得中... (件数によって少し時間がかかります)</p></div>';
+
+  try {
+    const allRows = [];
+    let startRow = 0;
+    const rowLimit = 25000;
+
+    // ページネーションで全件取得（最大5ページ = 125,000件）
+    for (let page = 0; page < 5; page++) {
+      const body = JSON.stringify({ startDate, endDate, dimensions: ['query'], rowLimit, startRow });
+      const data = await gFetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, { method:'POST', body });
+      const rows = data.rows || [];
+      allRows.push(...rows);
+      if (rows.length < rowLimit) break;
+      startRow += rowLimit;
+    }
+
+    if (!allRows.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> 指定期間のデータが見つかりませんでした。</div>'; return; }
+
+    S.gsc.kw = allRows.map(r => ({
+      keyword: r.keys[0] || '',
+      position: Math.round((r.position||0) * 10) / 10,
+      clicks: r.clicks || 0,
+      impressions: r.impressions || 0,
+      ctr: Math.round((r.ctr||0) * 1000) / 10,
+      volume: 0, prevPosition: null, landingPage: ''
+    })).sort((a,b) => a.position - b.position);
+
+    S.gsc.filter = 'all'; S.gsc.sort = 'position'; S.gsc.dir = 'asc';
+    renderAnalysis('gsc', document.getElementById('gsc-result'));
+  } catch(e) { el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> データ取得に失敗しました: ${e.message}</div>`; }
+}
+
+function showGSCError(msg) {
+  document.getElementById('gsc-data').innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i><span>${msg}</span></div>`;
+}
+
+/* ============================================================
+   SE Ranking CSV
+   ============================================================ */
+function dov(e,id){e.preventDefault();document.getElementById(id).classList.add('drag');}
+function dlv(id){document.getElementById(id).classList.remove('drag');}
+function dop(e,tab){e.preventDefault();dlv('drop-'+tab);const f=e.dataTransfer.files[0];if(f)proc(f,tab);}
+function lf(e,tab){const f=e.target.files[0];if(f)proc(f,tab);}
+
+function proc(file, tab) {
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const kw = parseSER(e.target.result);
+      if (!kw.length) { showTabErr(tab, 'CSVを解析できませんでした。フォーマットを確認してください。'); return; }
+      S[tab].kw = kw; S[tab].filter = 'all'; S[tab].sort = 'position'; S[tab].dir = 'asc';
+      renderAnalysis(tab, document.getElementById('out-'+tab));
+    } catch(err) { showTabErr(tab, '読み込みエラー: ' + err.message); }
+  };
+  r.readAsText(file, 'UTF-8');
+}
+
+function showTabErr(tab, msg) {
+  document.getElementById('out-'+tab).innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i><span>${msg}</span></div>`;
+}
+
+function csvsplit(line, sep) {
+  if (sep === '\t') return line.split('\t');
+  const res = []; let c = '', q = false;
+  for (const ch of line) { if (ch==='"'){q=!q;continue;} if(ch===','&&!q){res.push(c);c='';continue;} c+=ch; }
+  res.push(c); return res;
+}
+function cl(s) { return String(s||'').replace(/^"|"$/g,'').trim(); }
+
+function parseSER(text) {
+  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l);
+  if (!lines.length) return [];
+  const sep = lines[0].includes('\t') ? '\t' : ',';
+  const hdr = csvsplit(lines[0], sep).map(h=>cl(h).toLowerCase());
+  const ki = hdr.findIndex(h=>h.includes('keyword')||h.includes('キーワード'));
+  const pi = hdr.findIndex(h=>(h.includes('rank')||h.includes('position')||h.includes('順位'))&&!h.includes('prev')&&!h.includes('best')&&!h.includes('前')&&!h.includes('change'));
+  const pi2 = hdr.findIndex(h=>h.includes('prev')||h.includes('previous')||h.includes('前回'));
+  const vi = hdr.findIndex(h=>h.includes('volume')||h.includes('ボリューム'));
+  const ui = hdr.findIndex(h=>h.includes('landing')||h.includes('url')||h.includes('ページ'));
+  const res = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = csvsplit(lines[i], sep).map(cl);
+    if (!cells[ki]) continue;
+    const pr = cells[pi] || '';
+    const pos = (pr==='-'||pr===''||/n\/a/i.test(pr)||pr==='0') ? 101 : parseFloat(pr)||101;
+    const prevr = pi2>=0 ? cells[pi2]||'' : '';
+    const prev = (prevr==='-'||prevr===''||/n\/a/i.test(prevr)) ? null : parseFloat(prevr)||null;
+    res.push({ keyword:cells[ki], position:pos, prevPosition:prev, volume:vi>=0?(parseInt((cells[vi]||'0').replace(/,/g,''))||0):0, clicks:0, impressions:0, ctr:0, landingPage:ui>=0?(cells[ui]||''):'' });
+  }
+  return res.filter(r=>r.keyword).sort((a,b)=>a.position-b.position);
+}
+
+/* ============================================================
+   Render Analysis
+   ============================================================ */
+function renderAnalysis(tab, el) {
+  const kw = S[tab].kw;
+  const c1=kw.filter(k=>k.position<=3).length, c4=kw.filter(k=>k.position>=4&&k.position<=10).length;
+  const c11=kw.filter(k=>k.position>=11&&k.position<=30).length, c31=kw.filter(k=>k.position>=31&&k.position<=50).length;
+  const c51=kw.filter(k=>k.position>=51&&k.position<=100).length, cout=kw.filter(k=>k.position>100).length;
+  const avg = kw.length ? (kw.reduce((s,k)=>s+Math.min(k.position,100),0)/kw.length).toFixed(1) : 0;
+  const totalClicks = kw.reduce((s,k)=>s+k.clicks, 0);
+  const totalImpressions = kw.reduce((s,k)=>s+k.impressions, 0);
+
+  el.innerHTML = `
+  <div class="metrics">
+    <div class="mc"><div class="lb">総KW数</div><div class="val">${kw.length.toLocaleString()}</div></div>
+    <div class="mc blue"><div class="lb">平均順位</div><div class="val">${avg}</div><div class="sub">位</div></div>
+    <div class="mc green"><div class="lb">TOP3</div><div class="val">${c1}</div><div class="sub">キーワード</div></div>
+    <div class="mc blue"><div class="lb">TOP10</div><div class="val">${c1+c4}</div><div class="sub">キーワード</div></div>
+    <div class="mc yellow"><div class="lb">11〜30位</div><div class="val">${c11}</div><div class="sub">改善チャンス</div></div>
+    <div class="mc orange"><div class="lb">31〜100位</div><div class="val">${c31+c51}</div><div class="sub">要強化</div></div>
+    ${totalClicks ? `<div class="mc"><div class="lb">総クリック</div><div class="val">${totalClicks.toLocaleString()}</div></div>` : ''}
+    ${totalImpressions ? `<div class="mc"><div class="lb">総表示回数</div><div class="val">${(totalImpressions/1000).toFixed(1)}k</div></div>` : ''}
+  </div>
+  <div class="chart-card">
+    <h3><i class="ti ti-chart-bar"></i> 順位分布</h3>
+    <div style="position:relative;height:160px"><canvas id="ch-${tab}" role="img" aria-label="順位分布グラフ">1〜3位:${c1} 4〜10位:${c4} 11〜30位:${c11} 31〜50位:${c31} 51〜100位:${c51} 圏外:${cout}</canvas></div>
+  </div>
+  <div class="controls">
+    <div class="pills" id="pills-${tab}">
+      <span class="pill pa on" onclick="setF('${tab}','all',this)">すべて (${kw.length})</span>
+      <span class="pill p1" onclick="setF('${tab}','1',this)">1〜3位 (${c1})</span>
+      <span class="pill p4" onclick="setF('${tab}','4',this)">4〜10位 (${c4})</span>
+      <span class="pill p11" onclick="setF('${tab}','11',this)">11〜30位 (${c11})</span>
+      <span class="pill p31" onclick="setF('${tab}','31',this)">31〜50位 (${c31})</span>
+      <span class="pill p51" onclick="setF('${tab}','51',this)">51〜100位 (${c51})</span>
+    </div>
+    <div class="ml-auto">
+      <select class="sort-sel" onchange="S['${tab}'].sort=this.value;tbl('${tab}','tbl-${tab}')">
+        <option value="position">順位順</option>
+        <option value="clicks">クリック数順</option>
+        <option value="impressions">表示回数順</option>
+        <option value="volume">検索ボリューム順</option>
+        <option value="keyword">キーワード順</option>
+      </select>
+    </div>
+  </div>
+  <div class="table-wrap" id="tbl-${tab}"></div>
+  <div class="abar">
+    <button class="btn btn-g btn-sm" onclick="dlCSV('${tab}')"><i class="ti ti-download"></i> CSV出力</button>
+    <button class="btn btn-b btn-sm" onclick="dlHTML('${tab}')"><i class="ti ti-file-report"></i> HTMLレポート</button>
+    <button class="btn btn-o btn-sm" onclick="window.print()"><i class="ti ti-printer"></i> 印刷</button>
+  </div>`;
+
+  const cid = 'ch-' + tab;
+  if (S.charts[cid]) S.charts[cid].destroy();
+  S.charts[cid] = new Chart(document.getElementById(cid), {
+    type: 'bar',
+    data: { labels:['1〜3位','4〜10位','11〜30位','31〜50位','51〜100位','圏外'], datasets:[{data:[c1,c4,c11,c31,c51,cout],backgroundColor:['#16a34a','#2563eb','#ca8a04','#ea580c','#dc2626','#9ca3af'],borderRadius:5,borderSkipped:false}] },
+    options: { responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'#f2f4fa'},ticks:{font:{size:11},stepSize:1}}} }
+  });
+  tbl(tab, 'tbl-'+tab);
+}
+
+function tbl(tab, elId) {
+  const f=S[tab].filter, s=S[tab].sort, d=S[tab].dir;
+  let rows = [...S[tab].kw];
+  if(f!=='all') rows=rows.filter(k=>{
+    if(f==='1') return k.position<=3;
+    if(f==='4') return k.position>=4&&k.position<=10;
+    if(f==='11') return k.position>=11&&k.position<=30;
+    if(f==='31') return k.position>=31&&k.position<=50;
+    if(f==='51') return k.position>=51&&k.position<=100;
+  });
+  rows.sort((a,b)=>{let va=a[s]??0,vb=b[s]??0; if(typeof va==='string'){va=va.toLowerCase();vb=vb.toLowerCase();} return d==='asc'?(va>vb?1:-1):(va<vb?1:-1);});
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!rows.length) { el.innerHTML='<div class="empty"><i class="ti ti-search-off"></i><p>該当するキーワードがありません</p></div>'; return; }
+  const hasPrev = rows.some(k=>k.prevPosition!=null);
+  const hasClk = rows.some(k=>k.clicks>0);
+  const hasImp = rows.some(k=>k.impressions>0);
+  const hasVol = rows.some(k=>k.volume>0);
+  let h = `<table><thead><tr>
+    <th onclick="srt('${tab}','${elId}','keyword')" class="${s==='keyword'?'sorted':''}">キーワード</th>
+    <th onclick="srt('${tab}','${elId}','position')" class="${s==='position'?'sorted':''}">順位</th>
+    ${hasPrev?'<th>前回比</th>':''}
+    ${hasClk?`<th onclick="srt('${tab}','${elId}','clicks')" class="${s==='clicks'?'sorted':''}">クリック</th>`:''}
+    ${hasImp?`<th onclick="srt('${tab}','${elId}','impressions')" class="${s==='impressions'?'sorted':''}">表示回数</th>`:''}
+    ${hasClk&&hasImp?`<th>CTR</th>`:''}
+    ${hasVol?`<th onclick="srt('${tab}','${elId}','volume')" class="${s==='volume'?'sorted':''}">検索Vol</th>`:''}
+    <th>改善に必要なこと</th>
+  </tr></thead><tbody>`;
+  for (const k of rows) {
+    const p = Math.round(k.position*10)/10;
+    const diff = k.prevPosition!=null ? k.prevPosition-Math.round(p) : null;
+    h += `<tr>
+      <td><div class="kw">${esc(k.keyword)}</div>${k.landingPage?`<span class="kw-url" title="${esc(k.landingPage)}">${esc(k.landingPage.replace(/^https?:\/\//,''))}</span>`:''}</td>
+      <td>${badge(p)}</td>
+      ${hasPrev?`<td>${diff===null?'':(diff>0?`<span class="du">↑${diff}</span>`:diff<0?`<span class="dd">↓${Math.abs(diff)}</span>`:'<span style="color:#ddd">−</span>')}</td>`:''}
+      ${hasClk?`<td>${k.clicks.toLocaleString()}</td>`:''}
+      ${hasImp?`<td>${k.impressions.toLocaleString()}</td>`:''}
+      ${hasClk&&hasImp?`<td>${k.ctr}%</td>`:''}
+      ${hasVol?`<td>${k.volume>0?k.volume.toLocaleString():'−'}</td>`:''}
+      <td>${needed(p)}</td>
+    </tr>`;
+  }
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+function badge(p) {
+  if(p<=3) return `<span class="pb b1">${p}</span>`;
+  if(p<=10) return `<span class="pb b4">${p}</span>`;
+  if(p<=30) return `<span class="pb b11">${p}</span>`;
+  if(p<=50) return `<span class="pb b31">${p}</span>`;
+  if(p<=100) return `<span class="pb b51">${p}</span>`;
+  return `<span class="pb bout">圏外</span>`;
+}
+
+function needed(p) {
+  let tags='', detail='';
+  if(p<=3){ tags='<span class="tag tm">✓ 維持</span><span class="tag tc">CTR最適化</span>'; detail='タイトル・ディスクリプションの定期見直し、コンテンツの鮮度を保つ'; }
+  else if(p<=10){ tags='<span class="tag tc">CTR改善</span><span class="tag tt">コンテンツ深化</span>'; detail='タイトル改善・関連トピック追加・内部リンク強化・構造化データ'; }
+  else if(p<=20){ tags='<span class="tag tt">コンテンツ強化</span><span class="tag tl">被リンク獲得</span>'; detail='競合比較・差別化、3〜10本の被リンク獲得、ページ速度改善'; }
+  else if(p<=30){ tags='<span class="tag tt">大幅リライト</span><span class="tag tl">被リンク</span><span class="tag te">E-E-A-T強化</span>'; detail='専門家監修・実績明示、10〜20本の被リンク、コンテンツを競合以上に網羅'; }
+  else if(p<=50){ tags='<span class="tag tf">包括的改善</span><span class="tag tl">多数の被リンク</span>'; detail='20〜30本の被リンク、Core Web Vitals改善、ページの全面リニューアル'; }
+  else if(p<=100){ tags='<span class="tag tf">大規模強化</span><span class="tag te">ドメイン権威向上</span>'; detail='30本以上の被リンク、サイト全体のオーソリティ向上、コンテンツ戦略の根本見直し'; }
+  else { tags='<span class="tag tf">戦略的見直し</span>'; detail='難易度の再評価、ロングテールKWへの切り替え、別ページ・別コンテンツの検討を'; }
+  return `<div class="tags">${tags}</div><div class="nd">${detail}</div>`;
+}
+
+function srt(tab, elId, col) {
+  if(S[tab].sort===col) S[tab].dir=S[tab].dir==='asc'?'desc':'asc';
+  else{S[tab].sort=col;S[tab].dir='asc';}
+  tbl(tab, elId);
+}
+
+function setF(tab, val, el) {
+  S[tab].filter = val;
+  document.querySelectorAll(`#pills-${tab} .pill`).forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  const elId = 'tbl-'+tab;
+  tbl(tab, elId);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['gsc','ser'][i]===tab));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+}
+
+/* ============================================================
+   Export
+   ============================================================ */
+function dlCSV(tab) {
+  const kw = S[tab].kw;
+  const rows = [['キーワード','現在順位','前回順位','前回比','クリック数','表示回数','CTR(%)','検索ボリューム','優先度','改善アクション']];
+  for (const k of kw) {
+    const p = Math.round(k.position*10)/10;
+    const prev = k.prevPosition??'';
+    const diff = prev!==''?(prev-p):'';
+    const pri = p<=10?'高':p<=30?'中':'要強化';
+    const act = p<=3?'コンテンツ維持・CTR最適化':p<=10?'CTR改善・コンテンツ深化':p<=20?'被リンク獲得・コンテンツ強化':p<=30?'E-E-A-T強化・大幅リライト':p<=50?'包括的SEO改善':p<=100?'大規模SEO強化':'戦略的見直し';
+    rows.push([k.keyword,p,prev,diff,k.clicks,k.impressions,k.ctr,k.volume,pri,act]);
+  }
+  const csv = '\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv;charset=utf-8'}),`seo-${tab}-${today()}.csv`);
+}
+
+function dlHTML(tab) {
+  const kw = [...S[tab].kw].sort((a,b)=>a.position-b.position);
+  const avg = kw.length?(kw.reduce((s,k)=>s+Math.min(k.position,100),0)/kw.length).toFixed(1):0;
+  const c1=kw.filter(k=>k.position<=3).length, c10=kw.filter(k=>k.position<=10).length;
+  const rows = kw.map(k=>{
+    const p=Math.round(k.position*10)/10;
+    const col=p<=3?'#16a34a':p<=10?'#2563eb':p<=30?'#ca8a04':p<=50?'#ea580c':'#dc2626';
+    const act=p<=3?'コンテンツ維持・CTR最適化':p<=10?'CTR改善・コンテンツ深化':p<=20?'被リンク獲得・コンテンツ強化':p<=30?'E-E-A-T強化・大幅リライト':p<=50?'包括的SEO改善':p<=100?'大規模SEO強化':'戦略的見直し';
+    const diff=k.prevPosition!=null?(k.prevPosition-p):null;
+    const dstr=diff===null?'−':diff>0?`<span style="color:#16a34a">↑${diff}</span>`:diff<0?`<span style="color:#dc2626">↓${Math.abs(diff)}</span>`:'−';
+    return `<tr><td>${esc(k.keyword)}</td><td style="text-align:center;font-weight:700;color:${col}">${p}</td><td style="text-align:center">${dstr}</td><td style="text-align:center">${k.volume>0?k.volume.toLocaleString():'−'}</td><td style="text-align:center">${k.clicks?k.clicks.toLocaleString():'−'}</td><td style="text-align:center">${k.impressions?k.impressions.toLocaleString():'−'}</td><td>${act}</td></tr>`;
+  }).join('');
+  const src=tab==='gsc'?'Google Search Console':'SE Ranking';
+  const html=`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>SEO順位分析レポート ${today()}</title><style>body{font-family:-apple-system,sans-serif;max-width:1100px;margin:0 auto;padding:32px;color:#1a1a2e;font-size:14px}h1{font-size:22px;font-weight:700;margin-bottom:4px}p.meta{color:#aaa;font-size:13px;margin-bottom:24px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}.mc{background:#f8f9ff;border-radius:8px;padding:14px 16px;border-left:4px solid #3366ff}.mc .l{font-size:11px;color:#aaa;text-transform:uppercase;font-weight:700;letter-spacing:.3px}.mc .v{font-size:22px;font-weight:700;color:#3366ff;margin-top:2px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#3366ff;color:#fff;padding:10px 12px;text-align:left;font-weight:600}td{padding:9px 12px;border-bottom:1px solid #f0f2f8}tr:nth-child(even) td{background:#f8f9ff}@media print{body{padding:16px}}</style></head><body><h1>📊 SEO順位分析レポート</h1><p class="meta">生成日: ${today()} ／ データソース: ${src}</p><div class="grid"><div class="mc"><div class="l">総KW数</div><div class="v">${kw.length}</div></div><div class="mc"><div class="l">平均順位</div><div class="v">${avg}位</div></div><div class="mc"><div class="l">TOP3</div><div class="v">${c1}KW</div></div><div class="mc"><div class="l">TOP10</div><div class="v">${c10}KW</div></div></div><table><tr><th>キーワード</th><th>順位</th><th>前回比</th><th>検索Vol</th><th>クリック</th><th>表示回数</th><th>改善アクション</th></tr>${rows}</table></body></html>`;
+  dl(new Blob([html],{type:'text/html;charset=utf-8'}),`seo-report-${tab}-${today()}.html`);
+}
+
+function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
