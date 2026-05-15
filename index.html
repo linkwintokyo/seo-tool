@@ -251,6 +251,7 @@ tr:hover td{background:#f8f9ff}
     <button class="tab-btn active" onclick="switchTab('gsc')"><i class="ti ti-brand-google"></i> Search Console</button>
     <button class="tab-btn" onclick="switchTab('ga4')"><i class="ti ti-chart-line"></i> GA4分析</button>
     <button class="tab-btn" onclick="switchTab('ser')"><i class="ti ti-trending-up"></i> SE Ranking</button>
+    <button class="tab-btn" onclick="switchTab('follow')"><i class="ti ti-calendar-event"></i> フォロー日程</button>
   </div>
 
   <!-- ===== GSC Tab ===== -->
@@ -294,9 +295,33 @@ tr:hover td{background:#f8f9ff}
     <!-- 分析結果 -->
     <div id="out-ser"></div>
   </div>
+  <!-- ===== フォロー日程 Tab ===== -->
+  <div id="panel-follow" class="tab-panel">
+    <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:12px"><i class="ti ti-table" style="color:#3366ff"></i> フォロー管理シート読み込み</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="sheet-url" placeholder="Google SpreadsheetsのURL"
+          value="https://docs.google.com/spreadsheets/d/1tgep_IbG2IZLQsOK6h7pxMdF-p5Da4NkHlwMgl5KiVM/edit"
+          style="flex:1;min-width:280px;padding:9px 14px;border:1.5px solid #e0e2ec;border-radius:8px;font-size:13px;outline:none">
+        <button class="btn btn-b" onclick="loadFollowSheet()"><i class="ti ti-refresh"></i> 読み込む</button>
+        <button class="btn btn-o btn-sm" onclick="dlFollowCSV()"><i class="ti ti-download"></i> CSV出力</button>
+      </div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:#888">
+        <span>絞り込み：</span>
+        <select id="follow-filter" onchange="applyFollowFilter()" style="padding:5px 8px;border:1px solid #e0e2ec;border-radius:6px;font-size:12px;background:#fff">
+          <option value="all">全件表示</option>
+          <option value="alert-analysis">🔴 分析アラート（1ヶ月前）</option>
+          <option value="alert-gap">🟡 フォロー空白アラート</option>
+          <option value="upcoming">📅 今月・来月フォロー予定</option>
+        </select>
+        <input type="text" id="follow-search" placeholder="店舗名で検索..." oninput="applyFollowFilter()"
+          style="padding:5px 8px;border:1px solid #e0e2ec;border-radius:6px;font-size:12px;width:160px;outline:none">
+      </div>
+    </div>
+    <div id="follow-data"></div>
+  </div>
 
-</div><!-- /app -->
-</div><!-- /main-app -->
+
 
 <!-- Settings Modal -->
 <div id="modal-settings" class="modal-bg" style="display:none" onclick="if(event.target===this)closeSettings()">
@@ -420,6 +445,7 @@ function doGoogleLogin() {
       scope: [
         'https://www.googleapis.com/auth/webmasters.readonly',
         'https://www.googleapis.com/auth/analytics.readonly',
+        'https://www.googleapis.com/auth/spreadsheets.readonly',
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile'
       ].join(' '),
@@ -475,10 +501,9 @@ function doLogout() {
 }
 
 function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['gsc','ga4','ser'][i]===tab));
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['gsc','ga4','ser','follow'][i]===tab));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+tab).classList.add('active');
-  // 未ログイン時にGSC/GA4タブを開いたらバナー表示
   const needsLogin = (tab === 'gsc' || tab === 'ga4') && !S.accessToken;
   document.getElementById('login-banner').style.display = needsLogin ? 'block' : 'none';
 }
@@ -1081,8 +1106,273 @@ function showGSCError(msg) {
 }
 
 /* ============================================================
-   SE Ranking CSV
+   フォロー日程機能
    ============================================================ */
+
+// 日本の祝日（2025-2027）
+const JP_HOLIDAYS = new Set([
+  '2025-01-01','2025-01-13','2025-02-11','2025-02-23','2025-02-24',
+  '2025-03-20','2025-04-29','2025-05-03','2025-05-04','2025-05-05',
+  '2025-05-06','2025-07-21','2025-08-11','2025-09-15','2025-09-22',
+  '2025-09-23','2025-10-13','2025-11-03','2025-11-23','2025-11-24',
+  '2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20',
+  '2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06',
+  '2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23',
+  '2026-10-12','2026-11-03','2026-11-23','2026-11-24',
+  '2027-01-01','2027-01-11','2027-02-11','2027-02-23','2027-03-21',
+  '2027-04-29','2027-05-03','2027-05-04','2027-05-05',
+]);
+
+function isBusinessDay(date) {
+  const d = date.getDay();
+  const str = date.toISOString().slice(0,10);
+  return d !== 0 && d !== 6 && !JP_HOLIDAYS.has(str);
+}
+
+function prevBusinessDay(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - 1);
+  while (!isBusinessDay(d)) d.setDate(d.getDate() - 1);
+  return d;
+}
+
+function addMonths(date, n) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+// 6ヶ月後の前営業日を計算（土日祝なら前倒し）
+function calc6MonthBizDay(startDate) {
+  if (!startDate) return null;
+  let d = addMonths(startDate, 6);
+  if (!isBusinessDay(d)) d = prevBusinessDay(d);
+  return d;
+}
+
+// 日付文字列をパース（複数形式対応）
+function parseJPDate(str) {
+  if (!str || typeof str !== 'string') return null;
+  str = str.trim();
+  // YYYY/MM/DD or YYYY/M/D
+  let m = str.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+  if (m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
+  // M月D日 or M月
+  m = str.match(/^(\d{1,2})月(\d{1,2})日?/);
+  if (m) { const y = new Date().getFullYear(); return new Date(y, parseInt(m[1])-1, parseInt(m[2])); }
+  m = str.match(/^(\d{1,2})月$/);
+  if (m) { const y = new Date().getFullYear(); return new Date(y, parseInt(m[1])-1, 1); }
+  return null;
+}
+
+function fmtDate(d) {
+  if (!d) return '−';
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function daysDiff(a, b) {
+  return Math.round((b - a) / (1000*60*60*24));
+}
+
+let _followData = [];
+
+async function loadFollowSheet() {
+  const urlInput = document.getElementById('sheet-url').value.trim();
+  const el = document.getElementById('follow-data');
+
+  if (!S.accessToken) {
+    el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> 先にGoogleでログインしてください</div>';
+    return;
+  }
+
+  // スプレッドシートIDを抽出
+  const match = urlInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (!match) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> 正しいGoogle SpreadsheetsのURLを入力してください</div>'; return; }
+  const sheetId = match[1];
+
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>シートを読み込み中...</p></div>';
+
+  try {
+    // シート名を取得
+    const meta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`);
+    const sheetName = meta.sheets?.[0]?.properties?.title || 'シート1';
+
+    // 全データ取得
+    const res = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}`);
+    const rows = res.values || [];
+    if (rows.length < 3) { el.innerHTML = '<div class="err">データが少なすぎます</div>'; return; }
+
+    // ヘッダー解析（1行目：月ヘッダー、2行目：サブヘッダー）
+    const headerRow0 = rows[0] || []; // 月ヘッダー行
+    const headerRow1 = rows[1] || []; // サブヘッダー行
+
+    // 月カラムのマッピング: { colIndex: { month:'2026/1', type:'送付日'|'フォロー日程' } }
+    const monthCols = {};
+    let currentMonth = '';
+    for (let i = 0; i < Math.max(headerRow0.length, headerRow1.length); i++) {
+      const h0 = (headerRow0[i] || '').toString().trim();
+      const h1 = (headerRow1[i] || '').toString().trim();
+      if (h0.match(/^\d{4}[\/\-]\d{1,2}$/) || h0.match(/^\d{4}年\d{1,2}月$/)) currentMonth = h0;
+      if (currentMonth && (h1.includes('フォロー日程') || h1.includes('フォロー日'))) {
+        monthCols[i] = { month: currentMonth, type: 'follow' };
+      }
+      if (currentMonth && (h1.includes('送付') || h1.includes('送付日'))) {
+        monthCols[i] = { month: currentMonth, type: 'send' };
+      }
+    }
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const oneMonthLater = addMonths(today, 1);
+    const twoMonthsLater = addMonths(today, 2);
+
+    // データ行をパース
+    _followData = [];
+    for (let ri = 2; ri < rows.length; ri++) {
+      const row = rows[ri];
+      if (!row || !row[2]) continue; // 店舗名なければスキップ
+
+      const storeName = (row[2] || '').trim();
+      const website = (row[4] || '').trim();
+      const startDateRaw = (row[11] || '').trim(); // L列
+      const startDate = parseJPDate(startDateRaw);
+      const analysisDate = calc6MonthBizDay(startDate); // 6ヶ月後営業日
+      const alertDate = analysisDate ? addMonths(analysisDate, -1) : null; // 1ヶ月前
+
+      // 月別フォロー日を収集
+      const followDates = [];
+      for (const [colIdx, colInfo] of Object.entries(monthCols)) {
+        if (colInfo.type !== 'follow') continue;
+        const val = (row[parseInt(colIdx)] || '').trim();
+        if (!val || val === '−' || val === '-') continue;
+        const d = parseJPDate(val) || { raw: val, date: null };
+        const month = colInfo.month;
+        // 月から大まかな日付を推定
+        const mMatch = month.match(/(\d{4})[\/](\d{1,2})/);
+        const baseDate = mMatch ? new Date(parseInt(mMatch[1]), parseInt(mMatch[2])-1, 1) : null;
+        const parsedDate = d instanceof Date ? d : (d.date || baseDate);
+        followDates.push({ month, raw: val, date: parsedDate, isPast: parsedDate ? parsedDate <= today : baseDate ? baseDate <= today : false });
+      }
+
+      const pastFollows = followDates.filter(f => f.isPast).sort((a,b) => (b.date||0)-(a.date||0));
+      const futureFollows = followDates.filter(f => !f.isPast).sort((a,b) => (a.date||0)-(b.date||0));
+      const lastFollow = pastFollows[0] || null;
+      const nextFollow = futureFollows[0] || null;
+
+      // アラート判定
+      const analysisAlert = alertDate && today >= alertDate && (!analysisDate || today <= analysisDate);
+      const gapAlert = lastFollow?.date && nextFollow?.date
+        ? daysDiff(lastFollow.date, nextFollow.date) > 35
+        : lastFollow?.date && !nextFollow
+          ? daysDiff(lastFollow.date, today) > 35
+          : false;
+
+      _followData.push({ storeName, website, startDate, startDateRaw, analysisDate, alertDate, analysisAlert, pastFollows, futureFollows, lastFollow, nextFollow, gapAlert, rowIdx: ri });
+    }
+
+    applyFollowFilter();
+  } catch(e) {
+    el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> 読み込み失敗: ${e.message}<br><small>シートの共有設定でリンクを知っている全員が閲覧可能か、またはGoogleログイン済みか確認してください</small></div>`;
+  }
+}
+
+function applyFollowFilter() {
+  const filter = document.getElementById('follow-filter')?.value || 'all';
+  const search = (document.getElementById('follow-search')?.value || '').toLowerCase();
+  let data = _followData.filter(d => !search || d.storeName.toLowerCase().includes(search));
+  if (filter === 'alert-analysis') data = data.filter(d => d.analysisAlert);
+  if (filter === 'alert-gap') data = data.filter(d => d.gapAlert);
+  if (filter === 'upcoming') {
+    const today = new Date();
+    const twoM = addMonths(today, 2);
+    data = data.filter(d => d.nextFollow?.date && d.nextFollow.date <= twoM);
+  }
+  renderFollowTable(data);
+}
+
+function renderFollowTable(data) {
+  const el = document.getElementById('follow-data');
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  if (!data.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-search-off"></i><p>該当するデータがありません</p></div>';
+    return;
+  }
+
+  const alertAnalysis = data.filter(d=>d.analysisAlert).length;
+  const alertGap = data.filter(d=>d.gapAlert).length;
+
+  let html = '';
+
+  // サマリーバナー
+  if (alertAnalysis || alertGap) {
+    html += `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">`;
+    if (alertAnalysis) html += `<div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:10px 16px;font-size:13px;color:#be123c;display:flex;align-items:center;gap:8px">
+      <i class="ti ti-alarm" style="font-size:18px"></i><div><strong>${alertAnalysis}件</strong> の分析時期が近づいています（1ヶ月以内）</div></div>`;
+    if (alertGap) html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 16px;font-size:13px;color:#b45309;display:flex;align-items:center;gap:8px">
+      <i class="ti ti-clock-alert" style="font-size:18px"></i><div><strong>${alertGap}件</strong> のフォロー間隔が1ヶ月以上空いています</div></div>`;
+    html += '</div>';
+  }
+
+  html += `<div class="table-wrap"><table style="min-width:900px"><thead><tr>
+    <th style="min-width:130px">店舗名</th>
+    <th>対策開始日</th>
+    <th>分析予定日<br><small style="font-weight:400;color:#aaa">6ヶ月後営業日</small></th>
+    <th>最後のフォロー</th>
+    <th>次回フォロー予定</th>
+    <th>過去フォロー履歴</th>
+    <th>状態</th>
+  </tr></thead><tbody>`;
+
+  for (const d of data) {
+    const flags = [];
+    if (d.analysisAlert) flags.push(`<span style="background:#fff1f2;color:#be123c;border:1px solid #fecdd3;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;display:block;margin-bottom:3px">🔴 分析時期1ヶ月前</span>`);
+    if (d.gapAlert) flags.push(`<span style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;display:block;margin-bottom:3px">🟡 フォロー空白超過</span>`);
+    if (!flags.length) flags.push(`<span style="color:#ccc;font-size:12px">−</span>`);
+
+    const nextFollowDisplay = d.nextFollow
+      ? `<div style="font-weight:600;color:#1d4ed8">${d.nextFollow.raw}</div><div style="font-size:11px;color:#aaa">${d.nextFollow.month}</div>`
+      : '<span style="color:#dc2626;font-size:12px">未設定</span>';
+
+    const lastFollowDisplay = d.lastFollow
+      ? `<div style="font-weight:600">${d.lastFollow.raw}</div><div style="font-size:11px;color:#aaa">${d.lastFollow.month}</div>`
+      : '<span style="color:#aaa;font-size:12px">なし</span>';
+
+    const pastHistory = d.pastFollows.slice(0,4).map(f =>
+      `<span style="font-size:11px;background:#f0f2fa;border-radius:3px;padding:1px 5px;margin:1px;display:inline-block">${f.month}: ${f.raw}</span>`
+    ).join('');
+
+    const analysisDisplay = d.analysisDate
+      ? `<div style="font-weight:600;color:${d.analysisAlert?'#dc2626':'#333'}">${fmtDate(d.analysisDate)}</div>`
+      : '<span style="color:#aaa;font-size:12px">未設定</span>';
+
+    html += `<tr style="${d.analysisAlert?'background:#fff8f8':d.gapAlert?'background:#fffdf0':''}">
+      <td>
+        <div style="font-weight:600;color:#1a1a2e">${esc(d.storeName)}</div>
+        ${d.website ? `<a href="${esc(d.website)}" target="_blank" style="font-size:11px;color:#3366ff;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:130px">${esc(d.website.replace(/^https?:\/\//,''))}</a>` : ''}
+      </td>
+      <td style="font-size:13px">${esc(d.startDateRaw)||'−'}</td>
+      <td>${analysisDisplay}</td>
+      <td>${lastFollowDisplay}</td>
+      <td>${nextFollowDisplay}</td>
+      <td style="max-width:180px">${pastHistory||'<span style="color:#aaa;font-size:11px">なし</span>'}</td>
+      <td>${flags.join('')}</td>
+    </tr>`;
+  }
+
+  html += `</tbody></table></div>
+  <div style="font-size:12px;color:#aaa;padding:8px 0">全${data.length}件表示</div>`;
+  el.innerHTML = html;
+}
+
+function dlFollowCSV() {
+  if (!_followData.length) { alert('先にシートを読み込んでください'); return; }
+  const rows = [['店舗名','Webサイト','対策開始日','分析予定日（6ヶ月後）','最後のフォロー','次回フォロー予定','分析アラート','フォロー空白アラート']];
+  _followData.forEach(d => {
+    rows.push([d.storeName, d.website, d.startDateRaw||'', fmtDate(d.analysisDate), d.lastFollow?.raw||'', d.nextFollow?.raw||'', d.analysisAlert?'●':'', d.gapAlert?'●':'']);
+  });
+  const csv = '\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv;charset=utf-8'}),`follow-${today()}.csv`);
+}
 function dov(e,id){e.preventDefault();document.getElementById(id).classList.add('drag');}
 function dlv(id){document.getElementById(id).classList.remove('drag');}
 function dop(e,tab){e.preventDefault();dlv('drop-'+tab);const f=e.dataTransfer.files[0];if(f)proc(f,tab);}
