@@ -192,8 +192,11 @@ tr:hover td{background:#f8f9ff}
   <div id="pw-box">
     <div class="logo">🔐</div>
     <h2>SEO順位分析ツール</h2>
-    <p>アクセスにはパスワードが必要です</p>
-    <input type="password" id="pw-input" placeholder="パスワードを入力"
+    <p>IDとパスワードを入力してください</p>
+    <input type="email" id="pw-id" placeholder="メールアドレス"
+      onkeydown="if(event.key==='Enter')document.getElementById('pw-input').focus()"
+      style="margin-bottom:10px">
+    <input type="password" id="pw-input" placeholder="パスワード"
       onkeydown="if(event.key==='Enter')checkPw()">
     <button id="pw-submit" onclick="checkPw()">ログイン</button>
     <div id="pw-err"></div>
@@ -252,6 +255,7 @@ tr:hover td{background:#f8f9ff}
     <button class="tab-btn" onclick="switchTab('ga4')"><i class="ti ti-chart-line"></i> GA4分析</button>
     <button class="tab-btn" onclick="switchTab('ser')"><i class="ti ti-trending-up"></i> SE Ranking</button>
     <button class="tab-btn" onclick="switchTab('follow')"><i class="ti ti-calendar-event"></i> フォロー日程</button>
+    <button class="tab-btn" onclick="switchTab('zoho')"><i class="ti ti-building-store"></i> Zoho顧客管理</button>
   </div>
 
   <!-- ===== GSC Tab ===== -->
@@ -321,9 +325,31 @@ tr:hover td{background:#f8f9ff}
     <div id="follow-data"></div>
   </div>
 
-
-
-<!-- Settings Modal -->
+  <!-- ===== Zoho Tab ===== -->
+  <div id="panel-zoho" class="tab-panel">
+    <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:700;color:#1a1a2e"><i class="ti ti-building-store" style="color:#e8442e"></i> Zoho CRM — 店舗情報</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-sm" style="background:#e8442e;color:#fff" onclick="loadZoho()"><i class="ti ti-refresh"></i> データ取得</button>
+          <button class="btn btn-o btn-sm" onclick="dlZohoCSV()"><i class="ti ti-download"></i> CSV出力</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <input type="text" id="zoho-search" placeholder="店舗名・担当者で検索..." oninput="applyZohoFilter()"
+          style="flex:1;min-width:180px;padding:7px 12px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;outline:none">
+        <select id="zoho-filter-status" onchange="applyZohoFilter()" style="padding:7px 10px;border:1px solid #e0e2ec;border-radius:7px;font-size:13px;background:#fff">
+          <option value="all">全ステータス</option>
+          <option value="顧客">顧客のみ</option>
+          <option value="alert">🔴 分析アラートのみ</option>
+        </select>
+        <select id="zoho-filter-person" onchange="applyZohoFilter()" style="padding:7px 10px;border:1px solid #e0e2ec;border-radius:7px;font-size:13px;background:#fff">
+          <option value="all">全担当者</option>
+        </select>
+      </div>
+    </div>
+    <div id="zoho-data"><div class="empty"><i class="ti ti-building-store"></i><p>「データ取得」を押してください</p></div></div>
+  </div>
 <div id="modal-settings" class="modal-bg" style="display:none" onclick="if(event.target===this)closeSettings()">
   <div class="modal">
     <h2><i class="ti ti-settings" style="color:#3366ff"></i> 初回設定 — Google OAuth Client ID</h2>
@@ -351,23 +377,28 @@ tr:hover td{background:#f8f9ff}
 /* ============================================================
    パスワード認証 ← ここを変更するとパスワードが変わります
    ============================================================ */
+const TOOL_ID = 'linkwin.tokyo@gmail.com';
 const TOOL_PASSWORD = 'linkwinseo2026';
 
 function checkPw() {
-  const input = document.getElementById('pw-input');
+  const idInput = document.getElementById('pw-id');
+  const pwInput = document.getElementById('pw-input');
   const err = document.getElementById('pw-err');
-  input.classList.remove('wrong','shake');
-  if (input.value === TOOL_PASSWORD) {
+  pwInput.classList.remove('wrong','shake');
+  idInput.classList.remove('wrong');
+
+  if (idInput.value.trim() === TOOL_ID && pwInput.value === TOOL_PASSWORD) {
     sessionStorage.setItem('seo_auth', '1');
     document.getElementById('pw-screen').style.display = 'none';
     document.getElementById('main-app').style.display = 'block';
     err.textContent = '';
   } else {
-    void input.offsetWidth; // reflow for animation reset
-    input.classList.add('wrong','shake');
-    err.textContent = 'パスワードが違います';
-    input.value = '';
-    input.focus();
+    void pwInput.offsetWidth;
+    pwInput.classList.add('wrong','shake');
+    if (idInput.value.trim() !== TOOL_ID) idInput.classList.add('wrong');
+    err.textContent = 'IDまたはパスワードが違います';
+    pwInput.value = '';
+    pwInput.focus();
   }
 }
 
@@ -501,7 +532,7 @@ function doLogout() {
 }
 
 function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['gsc','ga4','ser','follow'][i]===tab));
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['gsc','ga4','ser','follow','zoho'][i]===tab));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+tab).classList.add('active');
   const needsLogin = (tab === 'gsc' || tab === 'ga4') && !S.accessToken;
@@ -1856,6 +1887,149 @@ function dlHTML(tab) {
 function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
 function today(){ return new Date().toISOString().slice(0,10); }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ============================================================
+   Zoho CRM
+   ============================================================ */
+const ZOHO_WORKER = 'https://zoho-proxy.linkwin-tokyo.workers.dev';
+let _zohoData = [];
+
+async function loadZoho() {
+  const el = document.getElementById('zoho-data');
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>Zohoから全店舗情報を取得中...</p></div>';
+  try {
+    let all = [], token = null;
+    const fields = 'Name,Web,field19,field29,field45,field51,GA4,Tag,field46,field30';
+    for (let i = 0; i < 20; i++) {
+      const url = `${ZOHO_WORKER}/Stores?fields=${fields}&per_page=200${token?'&page_token='+token:''}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.data) all.push(...data.data);
+      if (!data.info?.more_records) break;
+      token = data.info?.next_page_token;
+    }
+    _zohoData = all.map(r => ({
+      id: r.id,
+      name: r.Name || '',
+      website: r.Web || '',
+      contract: Array.isArray(r.field19) ? r.field19.join('・') : (r.field19 || ''),
+      startDate: r.field29 || '',
+      person: r.field45 || r.field46 || '',
+      status: r.field51 || '',
+      ga4: r.GA4 || '',
+      hearingSheet: r.field30 || '',
+      tags: Array.isArray(r.Tag) ? r.Tag.map(t=>t.name) : [],
+    }));
+
+    // 担当者フィルター更新
+    const persons = [...new Set(_zohoData.map(d=>d.person).filter(Boolean))].sort();
+    const sel = document.getElementById('zoho-filter-person');
+    sel.innerHTML = '<option value="all">全担当者</option>' + persons.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+
+    applyZohoFilter();
+  } catch(e) {
+    el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> 取得失敗: ${e.message}</div>`;
+  }
+}
+
+function applyZohoFilter() {
+  const q = (document.getElementById('zoho-search')?.value||'').toLowerCase();
+  const status = document.getElementById('zoho-filter-status')?.value||'all';
+  const person = document.getElementById('zoho-filter-person')?.value||'all';
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let data = _zohoData.filter(d => {
+    if (q && !d.name.toLowerCase().includes(q) && !d.person.toLowerCase().includes(q)) return false;
+    if (status === '顧客' && d.status !== '顧客') return false;
+    if (status === 'alert') {
+      const alert = calcAnalysisAlert(d.startDate, today);
+      if (!alert) return false;
+    }
+    if (person !== 'all' && d.person !== person) return false;
+    return true;
+  });
+  renderZohoTable(data);
+}
+
+function calcAnalysisAlert(startDateStr, today) {
+  if (!startDateStr) return false;
+  const start = new Date(startDateStr);
+  if (isNaN(start)) return false;
+  const analysisDate = addMonths(start, 6);
+  const alertDate = addMonths(analysisDate, -1);
+  return today >= alertDate && today <= analysisDate;
+}
+
+function renderZohoTable(data) {
+  const el = document.getElementById('zoho-data');
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (!data.length) { el.innerHTML = '<div class="empty"><i class="ti ti-search-off"></i><p>該当するデータがありません</p></div>'; return; }
+
+  const alerts = data.filter(d => calcAnalysisAlert(d.startDate, today)).length;
+
+  let html = '';
+  if (alerts) {
+    html += `<div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#be123c;display:flex;align-items:center;gap:8px">
+      <i class="ti ti-alarm" style="font-size:18px"></i><strong>${alerts}件</strong> の店舗で分析時期（6ヶ月）が1ヶ月以内に迫っています
+    </div>`;
+  }
+
+  html += `<div class="table-wrap"><table style="min-width:900px"><thead><tr>
+    <th style="min-width:160px">店舗名</th>
+    <th>担当者</th>
+    <th>契約内容</th>
+    <th>対策開始日</th>
+    <th>分析予定日</th>
+    <th>ステータス</th>
+    <th>タグ</th>
+    <th>リンク</th>
+  </tr></thead><tbody>`;
+
+  for (const d of data) {
+    const isAlert = calcAnalysisAlert(d.startDate, today);
+    const start = d.startDate ? new Date(d.startDate) : null;
+    const analysisDate = start ? addMonths(start, 6) : null;
+    const analysisFmt = analysisDate ? `${analysisDate.getFullYear()}/${analysisDate.getMonth()+1}/${analysisDate.getDate()}` : '−';
+
+    const tags = d.tags.map(t => `<span style="background:#f0f4ff;color:#3366ff;border-radius:4px;padding:1px 7px;font-size:11px;margin:1px;display:inline-block">${esc(t)}</span>`).join('');
+
+    const links = [];
+    if (d.website) links.push(`<a href="${esc(d.website)}" target="_blank" style="color:#3366ff;font-size:11px;margin-right:6px" title="Webサイト"><i class="ti ti-world"></i></a>`);
+    if (d.ga4) links.push(`<a href="${esc(d.ga4)}" target="_blank" style="color:#e37400;font-size:11px;margin-right:6px" title="GA4"><i class="ti ti-chart-line"></i></a>`);
+    if (d.hearingSheet) links.push(`<a href="${esc(d.hearingSheet)}" target="_blank" style="color:#16a34a;font-size:11px" title="ヒアリングシート"><i class="ti ti-file-text"></i></a>`);
+
+    html += `<tr style="${isAlert?'background:#fff8f8':''}">
+      <td>
+        <div style="font-weight:600;color:#1a1a2e">${esc(d.name)}</div>
+        ${d.website?`<div style="font-size:11px;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">${esc(d.website.replace(/^https?:\/\//,''))}</div>`:''}
+      </td>
+      <td style="font-size:13px;white-space:nowrap">${esc(d.person)||'−'}</td>
+      <td style="font-size:12px">${esc(d.contract)||'−'}</td>
+      <td style="font-size:13px;white-space:nowrap">${esc(d.startDate)||'−'}</td>
+      <td style="font-size:13px;white-space:nowrap;color:${isAlert?'#dc2626':'#333'};font-weight:${isAlert?'700':'400'}">
+        ${analysisFmt}${isAlert?' 🔴':''}
+      </td>
+      <td><span style="background:${d.status==='顧客'?'#dcfce7':'#f3f4f6'};color:${d.status==='顧客'?'#15803d':'#666'};border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${esc(d.status)||'−'}</span></td>
+      <td>${tags||'<span style="color:#ccc;font-size:11px">なし</span>'}</td>
+      <td style="white-space:nowrap">${links.join('')||'−'}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div><div style="font-size:12px;color:#aaa;padding:8px 0">全${data.length}件表示</div>`;
+  el.innerHTML = html;
+}
+
+function dlZohoCSV() {
+  if (!_zohoData.length) { alert('先にデータを取得してください'); return; }
+  const rows = [['店舗名','Webサイト','担当者','契約内容','対策開始日','分析予定日','ステータス','タグ','GA4','ヒアリングシート']];
+  _zohoData.forEach(d => {
+    const start = d.startDate ? new Date(d.startDate) : null;
+    const ad = start ? addMonths(start,6) : null;
+    const adf = ad ? `${ad.getFullYear()}/${ad.getMonth()+1}/${ad.getDate()}` : '';
+    rows.push([d.name,d.website,d.person,d.contract,d.startDate,adf,d.status,d.tags.join('・'),d.ga4,d.hearingSheet]);
+  });
+  const csv = '\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv;charset=utf-8'}),`zoho-stores-${today()}.csv`);
+}
 </script>
 </body>
 </html>
