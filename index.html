@@ -884,7 +884,8 @@ async function fetchGSCKeywords(siteUrl, startDate, endDate) {
     let startRow = 0;
     const rowLimit = 25000;
     for (let page = 0; page < 5; page++) {
-      const body = JSON.stringify({ startDate, endDate, dimensions: ['query'], rowLimit, startRow });
+      // dimensionsにpageを追加してランディングページも取得
+      const body = JSON.stringify({ startDate, endDate, dimensions: ['query','page'], rowLimit, startRow });
       const data = await gFetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, { method:'POST', body });
       const rows = data.rows || [];
       allRows.push(...rows);
@@ -892,14 +893,227 @@ async function fetchGSCKeywords(siteUrl, startDate, endDate) {
       startRow += rowLimit;
     }
     if (!allRows.length) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> データが見つかりませんでした。</div>'; return; }
-    S.gsc.kw = allRows.map(r => ({
-      keyword: r.keys[0]||'', position: Math.round((r.position||0)*10)/10,
-      clicks: r.clicks||0, impressions: r.impressions||0,
-      ctr: Math.round((r.ctr||0)*1000)/10, volume:0, prevPosition:null, landingPage:''
-    })).sort((a,b)=>a.position-b.position);
+
+    // クエリごとに集約（同一KWで複数ページある場合はクリック数が多いページを採用）
+    const kwMap = {};
+    allRows.forEach(r => {
+      const kw = r.keys[0]||'';
+      const pg = r.keys[1]||'';
+      const existing = kwMap[kw];
+      if (!existing || (r.clicks||0) > existing.clicks) {
+        kwMap[kw] = {
+          keyword: kw,
+          landingPage: pg,
+          position: Math.round((r.position||0)*10)/10,
+          clicks: r.clicks||0,
+          impressions: r.impressions||0,
+          ctr: Math.round((r.ctr||0)*1000)/10,
+        };
+      }
+    });
+
+    S.gsc.kw = Object.values(kwMap).sort((a,b)=>a.position-b.position);
+    S.gsc.siteUrl = siteUrl;
+    S.gsc.startDate = startDate;
+    S.gsc.endDate = endDate;
     S.gsc.filter='all'; S.gsc.sort='position'; S.gsc.dir='asc';
-    renderAnalysis('gsc', el);
+    renderGSCKeywords(el);
   } catch(e) { el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> ${e.message}</div>`; }
+}
+
+function renderGSCKeywords(el) {
+  const kw = S.gsc.kw || [];
+  const filter = S.gsc.filter || 'all';
+  const sort = S.gsc.sort || 'position';
+  const dir = S.gsc.dir || 'asc';
+
+  let filtered = kw.filter(k => {
+    if (filter === 'top3') return k.position <= 3;
+    if (filter === 'top10') return k.position <= 10 && k.position > 3;
+    if (filter === '11-30') return k.position > 10 && k.position <= 30;
+    if (filter === '31-100') return k.position > 30 && k.position <= 100;
+    if (filter === 'ctr-low') return k.impressions >= 100 && k.ctr < 2;
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    const v = dir === 'asc' ? 1 : -1;
+    if (sort === 'position') return (a.position - b.position) * v;
+    if (sort === 'clicks') return (b.clicks - a.clicks) * v;
+    if (sort === 'impressions') return (b.impressions - a.impressions) * v;
+    if (sort === 'ctr') return (b.ctr - a.ctr) * v;
+    return 0;
+  });
+
+  const arrow = (col) => {
+    if (sort !== col) return '<span style="color:#ddd;font-size:10px">⇅</span>';
+    return dir === 'asc' ? '<span style="color:#3366ff">↑</span>' : '<span style="color:#3366ff">↓</span>';
+  };
+
+  const sortTh = (col, label) =>
+    `<th onclick="gscSort('${col}')" style="cursor:pointer;white-space:nowrap">${label} ${arrow(col)}</th>`;
+
+  const html = `
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px">
+    <select onchange="S.gsc.filter=this.value;renderGSCKeywords(document.getElementById('gsc-sub-kw'))"
+      style="padding:6px 10px;border:1px solid #e0e2ec;border-radius:7px;font-size:13px;background:#fff">
+      <option value="all" ${filter==='all'?'selected':''}>全て（${kw.length}件）</option>
+      <option value="top3" ${filter==='top3'?'selected':''}>TOP3</option>
+      <option value="top10" ${filter==='top10'?'selected':''}>4〜10位</option>
+      <option value="11-30" ${filter==='11-30'?'selected':''}>11〜30位</option>
+      <option value="31-100" ${filter==='31-100'?'selected':''}>31〜100位</option>
+      <option value="ctr-low" ${filter==='ctr-low'?'selected':''}>CTR低め（表示100↑かつCTR2%未満）</option>
+    </select>
+    <span style="font-size:13px;color:#888">${filtered.length}件表示</span>
+    <div class="ml-auto">
+      <button class="btn btn-g btn-sm" onclick="dlGSCKeywordCSV()"><i class="ti ti-download"></i> CSV</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th style="min-width:180px">キーワード</th>
+        <th style="min-width:200px">ランディングページ</th>
+        ${sortTh('position','順位')}
+        ${sortTh('clicks','クリック')}
+        ${sortTh('impressions','表示回数')}
+        ${sortTh('ctr','CTR')}
+      </tr></thead>
+      <tbody>
+        ${filtered.map((k,i) => {
+          const badge = k.position<=3 ? 'background:#dcfce7;color:#15803d' :
+                        k.position<=10 ? 'background:#dbeafe;color:#1d4ed8' :
+                        k.position<=30 ? 'background:#fef9c3;color:#854d0e' :
+                        'background:#fee2e2;color:#b91c1c';
+          const pageShort = k.landingPage.replace(/^https?:\/\/[^\/]+/,'') || '/';
+          return `<tr id="kw-row-${i}" style="cursor:pointer" onclick="toggleKWTrend(${i},'${esc(k.keyword)}')">
+            <td>
+              <div style="display:flex;align-items:center;gap:6px">
+                <i class="ti ti-chevron-right" id="kw-icon-${i}" style="color:#aaa;font-size:12px;transition:transform .2s"></i>
+                <span style="font-size:13px;font-weight:500">${esc(k.keyword)}</span>
+              </div>
+            </td>
+            <td>
+              <a href="${esc(k.landingPage)}" target="_blank" onclick="event.stopPropagation()"
+                style="font-size:12px;color:#3366ff;text-decoration:none;display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                title="${esc(k.landingPage)}">${esc(pageShort)}</a>
+            </td>
+            <td><span style="border-radius:5px;padding:2px 8px;font-size:12px;font-weight:700;${badge}">${k.position}</span></td>
+            <td>${k.clicks.toLocaleString()}</td>
+            <td>${k.impressions.toLocaleString()}</td>
+            <td style="color:${k.ctr<1?'#dc2626':k.ctr<3?'#ca8a04':'#16a34a'};font-weight:600">${k.ctr}%</td>
+          </tr>
+          <tr id="kw-trend-${i}" style="display:none">
+            <td colspan="6" style="padding:0;background:#f8f9fc">
+              <div id="kw-trend-content-${i}" style="padding:16px">
+                <div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>トレンドを読み込み中...</p></div>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+
+  const container = el || document.getElementById('gsc-sub-kw');
+  container.innerHTML = html;
+}
+
+function gscSort(col) {
+  if (S.gsc.sort === col) {
+    S.gsc.dir = S.gsc.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    S.gsc.sort = col;
+    S.gsc.dir = col === 'position' ? 'asc' : 'desc';
+  }
+  renderGSCKeywords(document.getElementById('gsc-sub-kw'));
+}
+
+async function toggleKWTrend(i, keyword) {
+  const row = document.getElementById(`kw-trend-${i}`);
+  const icon = document.getElementById(`kw-icon-${i}`);
+  const content = document.getElementById(`kw-trend-content-${i}`);
+  if (!row) return;
+
+  const isOpen = row.style.display !== 'none';
+  if (isOpen) {
+    row.style.display = 'none';
+    icon.style.transform = '';
+    return;
+  }
+  row.style.display = 'table-row';
+  icon.style.transform = 'rotate(90deg)';
+
+  const siteUrl = S.gsc.siteUrl;
+  const startDate = S.gsc.startDate;
+  const endDate = S.gsc.endDate;
+
+  try {
+    const body = JSON.stringify({
+      startDate, endDate,
+      dimensions: ['date'],
+      dimensionFilterGroups: [{ filters: [{ dimension: 'query', operator: 'equals', expression: keyword }] }],
+      rowLimit: 500
+    });
+    const data = await gFetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, { method:'POST', body });
+    const rows = (data.rows||[]).sort((a,b)=>a.keys[0].localeCompare(b.keys[0]));
+
+    if (!rows.length) { content.innerHTML = '<div style="font-size:13px;color:#aaa;padding:8px">この期間のデータがありません</div>'; return; }
+
+    const maxPos = Math.max(...rows.map(r=>r.position), 30);
+    const chartH = 100;
+    const chartW = Math.max(rows.length * 20, 300);
+
+    const points = rows.map((r,idx) => {
+      const x = (idx / (rows.length-1||1)) * (chartW-20) + 10;
+      const y = chartH - ((maxPos - r.position) / maxPos) * (chartH-20) - 5;
+      return {x, y, date: r.keys[0], pos: Math.round(r.position*10)/10, clicks: r.clicks, imp: r.impressions};
+    });
+
+    const pathD = points.map((p,i)=>`${i===0?'M':'L'}${p.x},${p.y}`).join(' ');
+
+    content.innerHTML = `
+      <div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:10px">
+        「${esc(keyword)}」の順位推移（${startDate} 〜 ${endDate}）
+      </div>
+      <div style="overflow-x:auto">
+        <svg width="${chartW}" height="${chartH+30}" style="display:block">
+          <!-- グリッド線 -->
+          ${[1,3,10,30].filter(v=>v<=maxPos).map(v=>{
+            const y = chartH - ((maxPos-v)/maxPos)*(chartH-20) - 5;
+            return `<line x1="0" y1="${y}" x2="${chartW}" y2="${y}" stroke="#e4e7f0" stroke-width="1"/>
+                    <text x="2" y="${y-2}" font-size="9" fill="#aaa">${v}位</text>`;
+          }).join('')}
+          <!-- ライン -->
+          <path d="${pathD}" fill="none" stroke="#3366ff" stroke-width="2.5" stroke-linejoin="round"/>
+          <!-- ドット -->
+          ${points.map(p=>`
+            <circle cx="${p.x}" cy="${p.y}" r="4" fill="#3366ff" stroke="#fff" stroke-width="2">
+              <title>${p.date}\n順位: ${p.pos}\nクリック: ${p.clicks}\n表示: ${p.imp}</title>
+            </circle>`).join('')}
+          <!-- X軸ラベル（間引き） -->
+          ${points.filter((_,i)=>i===0||i===points.length-1||i%Math.ceil(points.length/6)===0).map(p=>
+            `<text x="${p.x}" y="${chartH+20}" font-size="9" fill="#aaa" text-anchor="middle">${p.date.slice(5)}</text>`
+          ).join('')}
+        </svg>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:#666;flex-wrap:wrap">
+        <span>最高順位: <strong style="color:#16a34a">${Math.min(...rows.map(r=>r.position)).toFixed(1)}位</strong></span>
+        <span>最低順位: <strong style="color:#dc2626">${Math.max(...rows.map(r=>r.position)).toFixed(1)}位</strong></span>
+        <span>平均順位: <strong>${(rows.reduce((s,r)=>s+r.position,0)/rows.length).toFixed(1)}位</strong></span>
+        <span>総クリック: <strong>${rows.reduce((s,r)=>s+r.clicks,0).toLocaleString()}</strong></span>
+      </div>`;
+  } catch(e) {
+    content.innerHTML = `<div class="err">${e.message}</div>`;
+  }
+}
+
+function dlGSCKeywordCSV() {
+  if (!S.gsc.kw?.length) return;
+  const rows = [['キーワード','ランディングページ','順位','クリック','表示回数','CTR(%)']];
+  S.gsc.kw.forEach(k => rows.push([k.keyword, k.landingPage, k.position, k.clicks, k.impressions, k.ctr]));
+  const csv = '\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv;charset=utf-8'}),`gsc-keywords-${today()}.csv`);
 }
 
 async function fetchGSCPages(siteUrl, startDate, endDate) {
@@ -966,21 +1180,49 @@ async function fetchGSCPages(siteUrl, startDate, endDate) {
 }
 
 function renderPageRows(pages) {
-  return pages.map(p => {
+  return pages.map((p,i) => {
     let flag = '';
     if (p.impressions >= 100 && p.clicks === 0) flag = '<span class="ga4-flag-yellow">CTR改善</span>';
     else if (p.ctr < 1 && p.impressions >= 50) flag = '<span class="ga4-flag-yellow">CTR低め</span>';
     else if (p.position <= 3 && p.clicks > 0) flag = '<span class="ga4-flag-green">✅ 好調</span>';
     else flag = '<span style="color:#ccc;font-size:12px">−</span>';
+    const pageShort = p.url.replace(/^https?:\/\/[^\/]+/,'') || '/';
     return `<tr>
-      <td style="font-size:12px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(p.url)}">${esc(p.url)}</td>
+      <td style="max-width:260px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <a href="${esc(p.url)}" target="_blank" style="font-size:12px;color:#3366ff;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:200px" title="${esc(p.url)}">${esc(pageShort)}</a>
+          <button onclick="togglePageDetail(${i})" style="background:none;border:none;cursor:pointer;color:#aaa;flex-shrink:0;padding:2px" title="詳細を見る">
+            <i class="ti ti-eye" id="page-eye-${i}" style="font-size:14px"></i>
+          </button>
+        </div>
+      </td>
       <td>${p.clicks.toLocaleString()}</td>
       <td>${p.impressions.toLocaleString()}</td>
       <td style="color:${p.ctr<1?'#dc2626':p.ctr<3?'#ca8a04':'#16a34a'};font-weight:600">${p.ctr}%</td>
       <td>${p.position}</td>
       <td>${flag}</td>
+    </tr>
+    <tr id="page-detail-${i}" style="display:none;background:#f8f9fc">
+      <td colspan="6" style="padding:12px 16px;font-size:13px">
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center">
+          <span>🔗 <a href="${esc(p.url)}" target="_blank" style="color:#3366ff;word-break:break-all">${esc(p.url)}</a></span>
+          <span style="color:#888">クリック率: <strong style="color:${p.ctr<1?'#dc2626':p.ctr<3?'#ca8a04':'#16a34a'}">${p.ctr}%</strong></span>
+          <span style="color:#888">平均順位: <strong>${p.position}位</strong></span>
+          <span style="color:#888">表示回数: <strong>${p.impressions.toLocaleString()}</strong></span>
+          ${p.ctr < 2 && p.impressions >= 50 ? '<span style="background:#fff8e1;color:#b45309;border-radius:5px;padding:3px 10px;font-size:12px">💡 タイトル・ディスクリプションの改善でCTR向上が見込めます</span>' : ''}
+        </div>
+      </td>
     </tr>`;
   }).join('');
+}
+
+function togglePageDetail(i) {
+  const row = document.getElementById(`page-detail-${i}`);
+  const eye = document.getElementById(`page-eye-${i}`);
+  if (!row) return;
+  const isOpen = row.style.display !== 'none';
+  row.style.display = isOpen ? 'none' : 'table-row';
+  if (eye) eye.style.color = isOpen ? '#aaa' : '#3366ff';
 }
 
 function filterPageTable(q) {
