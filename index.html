@@ -626,6 +626,14 @@ function switchTab(tab) {
   document.getElementById('login-banner').style.display = needsLogin ? 'block' : 'none';
   // GA4タブに切り替えたとき自動マッチング
   if (tab === 'ga4' && S.activeSite) syncGA4WithActiveSite();
+  // SE Rankingタブに切り替えたとき
+  if (tab === 'ser') {
+    if (S.activeDomain) {
+      const clientInput = document.getElementById('ser-client');
+      if (clientInput && !clientInput.value) clientInput.value = S.activeDomain;
+    }
+    renderSerHistory();
+  }
 }
 
 /* ============================================================
@@ -639,6 +647,11 @@ function updateActiveSiteBar() {
   document.getElementById('active-site-link').href = S.activeSite;
   document.getElementById('active-psi-link').href =
     `https://pagespeed.web.dev/analysis?url=${encodeURIComponent(S.activeSite)}&form_factor=mobile&hl=ja`;
+
+  // SE Rankingのクライアント名を自動セット・履歴再描画
+  const clientInput = document.getElementById('ser-client');
+  if (clientInput && !clientInput.value) clientInput.value = S.activeDomain;
+  renderSerHistory();
 }
 
 async function syncGA4WithActiveSite() {
@@ -2130,29 +2143,87 @@ function renderSerHistory() {
   const history = getSerHistory();
   const keys = Object.keys(history).sort().reverse();
   if (!keys.length) { el.innerHTML = ''; return; }
+
   const clients = {};
   keys.forEach(k => { const d=history[k]; if(!clients[d.client])clients[d.client]=[]; clients[d.client].push({key:k,...d}); });
+
+  const activeDomain = S.activeDomain ? S.activeDomain.replace(/^www\./, '') : '';
+  const activeClient = activeDomain
+    ? Object.keys(clients).find(c =>
+        c.toLowerCase().includes(activeDomain.toLowerCase()) ||
+        activeDomain.toLowerCase().includes(c.toLowerCase()) ||
+        (clients[c][0]?.siteUrl || '').toLowerCase().includes(activeDomain.toLowerCase())
+      )
+    : null;
+
   let html = `<div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <span style="font-size:14px;font-weight:700;color:#1a1a2e"><i class="ti ti-database" style="color:#3366ff"></i> 蓄積データ一覧</span>
       <button class="btn btn-o btn-sm" onclick="if(confirm('全データを削除しますか？')){localStorage.removeItem('ser_history');renderSerHistory();document.getElementById('out-ser').innerHTML='';}"><i class="ti ti-trash"></i> 全削除</button>
     </div>`;
-  Object.entries(clients).forEach(([client, entries]) => {
-    const months = entries.sort((a,b)=>b.month.localeCompare(a.month));
-    html += `<div style="margin-bottom:12px">
-      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:6px">${esc(client)}${months[0].siteUrl?` <span style="font-weight:400;color:#bbb">— ${esc(months[0].siteUrl)}</span>`:''}</div>
+
+  // ① アクティブサイトのデータを青枠で展開表示
+  if (activeClient) {
+    const months = clients[activeClient].sort((a,b) => b.month.localeCompare(a.month));
+    html += `<div style="background:#eff6ff;border:2px solid #93c5fd;border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#1d4ed8;margin-bottom:10px">
+        <i class="ti ti-map-pin" style="font-size:12px"></i> ${esc(activeClient)}
+        ${months[0].siteUrl ? `<span style="font-weight:400;color:#93c5fd;margin-left:6px;font-size:11px">— ${esc(months[0].siteUrl)}</span>` : ''}
+      </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${months.map(m=>`<div style="display:flex;align-items:center;gap:4px;background:#f0f4ff;border:1px solid #bfdbfe;border-radius:20px;padding:4px 10px 4px 12px;font-size:12px">
+        ${months.map(m => `<div style="display:flex;align-items:center;gap:4px;background:#dbeafe;border:1px solid #93c5fd;border-radius:20px;padding:4px 10px 4px 12px;font-size:12px">
           <span style="font-weight:600;color:#1d4ed8;cursor:pointer" onclick="loadSerMonth('${esc(m.key)}')">${m.month}</span>
-          <span style="color:#aaa;margin:0 4px">(${m.kw.length}KW)</span>
-          <button onclick="deleteSerMonth('${esc(m.key)}')" style="background:none;border:none;cursor:pointer;color:#aaa;padding:0;font-size:12px">✕</button>
+          <span style="color:#60a5fa;margin:0 4px">(${m.kw.length}KW)</span>
+          <button onclick="deleteSerMonth('${esc(m.key)}')" style="background:none;border:none;cursor:pointer;color:#93c5fd;padding:0;font-size:12px">✕</button>
         </div>`).join('')}
-        <button class="btn btn-o btn-sm" style="border-radius:20px;font-size:12px;padding:3px 10px" onclick="renderTrendAnalysis('${esc(client)}')"><i class="ti ti-chart-line"></i> トレンド分析</button>
+        ${months.length >= 2
+          ? `<button class="btn btn-sm" style="border-radius:20px;font-size:12px;padding:3px 12px;background:#3366ff;color:#fff;border:none;cursor:pointer" onclick="renderTrendAnalysis('${esc(activeClient)}')"><i class="ti ti-chart-line"></i> トレンド分析</button>`
+          : `<span style="font-size:11px;color:#93c5fd;align-self:center">あと${2 - months.length}ヶ月でトレンド分析可能</span>`}
       </div>
     </div>`;
-  });
+  }
+
+  // ② 他サイトはコンパクトなボタン表示
+  const otherClients = Object.keys(clients).filter(c => c !== activeClient);
+  if (otherClients.length) {
+    html += `<div>
+      <div style="font-size:11px;color:#aaa;margin-bottom:8px;font-weight:600">${activeClient ? 'その他のサイト' : '全サイト'}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="ser-other-clients">`;
+    otherClients.forEach(client => {
+      const months = clients[client].sort((a,b) => b.month.localeCompare(a.month));
+      html += `<div style="background:#f8f9fc;border:1px solid #e4e7f0;border-radius:8px;padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="expandSerClient('${esc(client)}',this)">
+        <span style="font-weight:600;color:#555">${esc(client)}</span>
+        <span style="color:#ccc;font-size:11px">${months.length}ヶ月</span>
+        <i class="ti ti-chevron-down" style="color:#aaa;font-size:11px"></i>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
   html += '</div>';
   el.innerHTML = html;
+}
+
+function expandSerClient(client, btn) {
+  const existing = document.getElementById('ser-expand-' + CSS.escape(client));
+  if (existing) { existing.remove(); btn.querySelector('i').className = 'ti ti-chevron-down'; btn.style.background = '#f8f9fc'; return; }
+  const history = getSerHistory();
+  const months = Object.values(history).filter(d => d.client === client).sort((a,b) => b.month.localeCompare(a.month));
+  if (!months.length) return;
+  btn.querySelector('i').className = 'ti ti-chevron-up';
+  btn.style.background = '#f0f4ff';
+  const div = document.createElement('div');
+  div.id = 'ser-expand-' + CSS.escape(client);
+  div.style.cssText = 'background:#f8f9fc;border:1px solid #e4e7f0;border-radius:10px;padding:12px 14px;margin-top:8px;width:100%';
+  div.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px">
+    ${months.map(m=>`<div style="display:flex;align-items:center;gap:4px;background:#f0f4ff;border:1px solid #bfdbfe;border-radius:20px;padding:4px 10px 4px 12px;font-size:12px">
+      <span style="font-weight:600;color:#1d4ed8;cursor:pointer" onclick="loadSerMonth('${esc(m.key)}')">${m.month}</span>
+      <span style="color:#aaa;margin:0 4px">(${m.kw.length}KW)</span>
+      <button onclick="deleteSerMonth('${esc(m.key)}')" style="background:none;border:none;cursor:pointer;color:#aaa;padding:0;font-size:12px">✕</button>
+    </div>`).join('')}
+    ${months.length>=2?`<button class="btn btn-o btn-sm" style="border-radius:20px;font-size:12px;padding:3px 10px" onclick="renderTrendAnalysis('${esc(client)}')"><i class="ti ti-chart-line"></i> トレンド分析</button>`:''}
+  </div>`;
+  btn.closest('div[style*="display:flex;flex-wrap:wrap"]').after(div);
 }
 
 function loadSerMonth(key) {
