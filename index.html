@@ -265,6 +265,16 @@ tr:hover td{background:#f8f9ff}
     <button class="tab-btn" onclick="switchTab('zoho')"><i class="ti ti-building-store"></i> Zoho顧客管理</button>
   </div>
 
+  <!-- ===== アクティブサイト連動バー ===== -->
+  <div id="active-site-bar" style="display:none;background:linear-gradient(90deg,#3366ff08,#7c3aed08);border:1px solid #e0e7ff;border-radius:9px;padding:9px 16px;margin-bottom:12px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
+    <i class="ti ti-link" style="color:#3366ff;font-size:15px;flex-shrink:0"></i>
+    <span style="font-size:12px;color:#666;white-space:nowrap">現在選択中のサイト：</span>
+    <strong id="active-site-label" style="font-size:13px;color:#1a1a2e;flex:1"></strong>
+    <button onclick="syncGA4WithActiveSite()" style="padding:4px 12px;font-size:11px;font-weight:600;background:#3366ff;color:#fff;border:none;border-radius:5px;cursor:pointer"><i class="ti ti-chart-line"></i> GA4で絞り込む</button>
+    <a id="active-site-link" href="#" target="_blank" style="font-size:11px;color:#3366ff;text-decoration:none"><i class="ti ti-external-link"></i> サイトを開く</a>
+    <a id="active-psi-link" href="#" target="_blank" style="font-size:11px;color:#e37400;text-decoration:none"><i class="ti ti-gauge"></i> PageSpeed</a>
+  </div>
+
   <!-- ===== GSC Tab ===== -->
   <div id="panel-gsc" class="tab-panel active">
     <div id="gsc-data"></div>
@@ -272,12 +282,31 @@ tr:hover td{background:#f8f9ff}
 
   <!-- ===== GA4 Tab ===== -->
   <div id="panel-ga4" class="tab-panel">
-    <div id="ga4-data"></div>
+    <!-- GA4サブタブ -->
+    <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:2px solid #e4e7f0;padding-bottom:0">
+      <button id="ga4-sub-pages" onclick="switchGA4Sub('pages')"
+        style="padding:7px 18px;font-size:13px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:#e37400;color:#fff;cursor:pointer"><i class="ti ti-file-analytics"></i> ページ分析</button>
+      <button id="ga4-sub-traffic" onclick="switchGA4Sub('traffic')"
+        style="padding:7px 18px;font-size:13px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:#f0f2fa;color:#666;cursor:pointer"><i class="ti ti-arrows-split"></i> トラフィック獲得</button>
+    </div>
+    <div id="ga4-panel-pages"><div id="ga4-data"></div></div>
+    <div id="ga4-panel-traffic" style="display:none">
+      <div id="ga4-traffic-data"><div class="empty"><i class="ti ti-arrows-split"></i><p>「ページ分析」で先にプロパティを選択しデータ取得後、こちらで取得できます</p></div></div>
+    </div>
   </div>
 
   <!-- ===== SE Ranking Tab ===== -->
   <div id="panel-ser" class="tab-panel">
+    <!-- SE Rankingサブタブ -->
+    <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:2px solid #e4e7f0;padding-bottom:0">
+      <button id="ser-sub-rank" onclick="switchSerSub('rank')"
+        style="padding:7px 18px;font-size:13px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:#3366ff;color:#fff;cursor:pointer"><i class="ti ti-trending-up"></i> 順位トラッキング</button>
+      <button id="ser-sub-llmo" onclick="switchSerSub('llmo')"
+        style="padding:7px 18px;font-size:13px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:#f0f2fa;color:#666;cursor:pointer"><i class="ti ti-brain"></i> AIトラッカー（LLMO）</button>
+    </div>
 
+    <!-- 順位トラッキング -->
+    <div id="ser-panel-rank">
     <!-- アップロード＋月指定エリア -->
     <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
@@ -299,12 +328,28 @@ tr:hover td{background:#f8f9ff}
       </div>
       <input type="file" id="fs" accept=".csv" onchange="lf(event,'ser')">
     </div>
-
     <!-- 蓄積データ一覧 -->
     <div id="ser-history-panel"></div>
-
     <!-- 分析結果 -->
     <div id="out-ser"></div>
+    </div>
+
+    <!-- AIトラッカー（LLMO）パネル -->
+    <div id="ser-panel-llmo" style="display:none">
+      <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:10px"><i class="ti ti-brain" style="color:#7c3aed"></i> AI Overview トラッカー（SE Ranking AIRT CSV）</div>
+        <p style="font-size:12px;color:#888;margin-bottom:12px">SE RankingのAIトラッカーからエクスポートしたCSVをアップロードしてください</p>
+        <div class="upload-area" id="drop-llmo" style="margin-bottom:0;padding:24px"
+          onclick="document.getElementById('fs-llmo').click()"
+          ondragover="dov(event,'drop-llmo')" ondragleave="dlv('drop-llmo')" ondrop="dopLLMO(event)">
+          <i class="ti ti-file-spreadsheet uico" style="font-size:24px;margin-bottom:6px;color:#7c3aed"></i>
+          <p style="font-size:13px">AIRT Rankings CSVをドロップ、またはクリックして選択</p>
+          <small>_airt_rankings_YYYY-MM-DD.csv 形式</small>
+        </div>
+        <input type="file" id="fs-llmo" accept=".csv" onchange="loadLLMOCSV(event)">
+      </div>
+      <div id="llmo-out"></div>
+    </div>
   </div>
   <!-- ===== フォロー日程 Tab ===== -->
   <div id="panel-follow" class="tab-panel">
@@ -317,6 +362,13 @@ tr:hover td{background:#f8f9ff}
         <button class="btn btn-b" onclick="loadFollowSheet()"><i class="ti ti-refresh"></i> 読み込む</button>
         <button class="btn btn-o btn-sm" onclick="dlFollowCSV()"><i class="ti ti-download"></i> CSV出力</button>
       </div>
+      <!-- サブタブ（全案件/熊本案件） -->
+      <div style="display:flex;gap:4px;margin-top:14px;border-bottom:2px solid #e4e7f0;padding-bottom:0">
+        <button id="follow-subtab-main" onclick="switchFollowTab('main')"
+          style="padding:6px 18px;font-size:12px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:#3366ff;color:#fff;cursor:pointer">全案件</button>
+        <button id="follow-subtab-kumamoto" onclick="switchFollowTab('kumamoto')"
+          style="padding:6px 18px;font-size:12px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:#f0f2fa;color:#666;cursor:pointer">熊本案件</button>
+      </div>
       <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:#888">
         <span>絞り込み：</span>
         <select id="follow-filter" onchange="applyFollowFilter()" style="padding:5px 8px;border:1px solid #e0e2ec;border-radius:6px;font-size:12px;background:#fff">
@@ -324,6 +376,13 @@ tr:hover td{background:#f8f9ff}
           <option value="alert-analysis">🔴 分析アラート（1ヶ月前）</option>
           <option value="alert-gap">🟡 フォロー空白アラート</option>
           <option value="upcoming">📅 今月・来月フォロー予定</option>
+          <option value="no-start">⚠️ 対策開始日なし</option>
+        </select>
+        <select id="follow-tag-filter" onchange="applyFollowFilter()" style="padding:5px 8px;border:1px solid #e0e2ec;border-radius:6px;font-size:12px;background:#fff">
+          <option value="all">全タグ</option>
+          <option value="発注">発注</option>
+          <option value="未契約">未契約</option>
+          <option value="解約">解約</option>
         </select>
         <input type="text" id="follow-search" placeholder="店舗名で検索..." oninput="applyFollowFilter()"
           style="padding:5px 8px;border:1px solid #e0e2ec;border-radius:6px;font-size:12px;width:160px;outline:none">
@@ -342,6 +401,14 @@ tr:hover td{background:#f8f9ff}
           <button class="btn btn-o btn-sm" onclick="dlZohoCSV()"><i class="ti ti-download"></i> CSV出力</button>
         </div>
       </div>
+      <!-- Zoho Org ID 設定 -->
+      <div style="background:#f8f9fc;border-radius:7px;padding:8px 12px;margin-bottom:10px;font-size:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="color:#666;white-space:nowrap"><i class="ti ti-link"></i> Zoho Org ID：</span>
+        <input type="text" id="zoho-org-id" placeholder="例: 738762498" oninput="localStorage.setItem('zohoOrgId',this.value)"
+          style="padding:4px 8px;border:1px solid #e0e2ec;border-radius:5px;font-size:12px;width:140px;outline:none"
+          value="">
+        <span style="color:#aaa">設定するとCRM直リンクが表示されます</span>
+      </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
         <input type="text" id="zoho-search" placeholder="店舗名・担当者で検索..." oninput="applyZohoFilter()"
           style="flex:1;min-width:180px;padding:7px 12px;border:1.5px solid #e0e2ec;border-radius:7px;font-size:13px;outline:none">
@@ -349,6 +416,12 @@ tr:hover td{background:#f8f9ff}
           <option value="all">全ステータス</option>
           <option value="顧客">顧客のみ</option>
           <option value="alert">🔴 分析アラートのみ</option>
+        </select>
+        <select id="zoho-filter-tag" onchange="applyZohoFilter()" style="padding:7px 10px;border:1px solid #e0e2ec;border-radius:7px;font-size:13px;background:#fff">
+          <option value="all">全タグ</option>
+          <option value="発注">発注</option>
+          <option value="未発注">未発注</option>
+          <option value="解約">解約</option>
         </select>
         <select id="zoho-filter-person" onchange="applyZohoFilter()" style="padding:7px 10px;border:1px solid #e0e2ec;border-radius:7px;font-size:13px;background:#fff">
           <option value="all">全担当者</option>
@@ -553,10 +626,200 @@ function switchTab(tab) {
   document.getElementById('login-banner').style.display = needsLogin ? 'block' : 'none';
 }
 
+/* ============================================================
+   サイト連動バー
+   ============================================================ */
+function updateActiveSiteBar() {
+  const bar = document.getElementById('active-site-bar');
+  if (!S.activeSite) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('active-site-label').textContent = S.activeDomain;
+  document.getElementById('active-site-link').href = S.activeSite;
+  document.getElementById('active-psi-link').href =
+    `https://pagespeed.web.dev/analysis?url=${encodeURIComponent(S.activeSite)}&form_factor=mobile&hl=ja`;
+}
+
+function syncGA4WithActiveSite() {
+  if (!S.activeDomain) return;
+  // GA4タブに切り替えてドメインで絞り込む
+  switchTab('ga4');
+  switchGA4Sub('pages');
+  const q = S.activeDomain.replace(/^www\./, '').split('/')[0];
+  const searchInput = document.querySelector('#ga4-panel-pages input[placeholder="名前で検索..."]');
+  if (searchInput) { searchInput.value = q; filterGA4Props(q); }
+}
 
 /* ============================================================
-   GA4 API
+   GA4 サブタブ切り替え
    ============================================================ */
+let _ga4ActivePropId = null;
+
+function switchGA4Sub(sub) {
+  document.getElementById('ga4-panel-pages').style.display = sub === 'pages' ? 'block' : 'none';
+  document.getElementById('ga4-panel-traffic').style.display = sub === 'traffic' ? 'block' : 'none';
+  document.getElementById('ga4-sub-pages').style.cssText =
+    `padding:7px 18px;font-size:13px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:${sub==='pages'?'#e37400':'#f0f2fa'};color:${sub==='pages'?'#fff':'#666'};cursor:pointer`;
+  document.getElementById('ga4-sub-traffic').style.cssText =
+    `padding:7px 18px;font-size:13px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:${sub==='traffic'?'#3366ff':'#f0f2fa'};color:${sub==='traffic'?'#fff':'#666'};cursor:pointer`;
+  if (sub === 'traffic' && _ga4ActivePropId) fetchGA4Traffic(_ga4ActivePropId);
+}
+
+/* ============================================================
+   GA4 トラフィック獲得レポート
+   ============================================================ */
+async function fetchGA4Traffic(propId) {
+  const el = document.getElementById('ga4-traffic-data');
+  if (!propId) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-arrows-split"></i><p>先にページ分析タブでデータを取得してください</p></div>';
+    return;
+  }
+
+  // 期間を共有（ページ分析と同じ）
+  const startDate = document.getElementById('ga4-start')?.value || (() => {
+    const d = new Date(); d.setMonth(d.getMonth()-1); d.setDate(1); return d.toISOString().slice(0,10);
+  })();
+  const endDate = document.getElementById('ga4-end')?.value || (() => {
+    const d = new Date(); d.setDate(0); return d.toISOString().slice(0,10);
+  })();
+
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>トラフィック獲得データを取得中...</p></div>';
+
+  try {
+    // ① 参照元/メディア
+    const bodySourceMedium = JSON.stringify({
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'sessionSourceMedium' }],
+      metrics: [
+        { name: 'sessions' },
+        { name: 'totalUsers' },
+        { name: 'engagementRate' },
+        { name: 'averageSessionDuration' },
+        { name: 'conversions' }
+      ],
+      orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+      limit: 50
+    });
+    const smData = await gFetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, { method:'POST', body: bodySourceMedium });
+
+    // ② 参照元URL（referralPath）
+    const bodyRef = JSON.stringify({
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'sessionSource' }, { name: 'fullPageUrl' }],
+      dimensionFilter: { filter: { fieldName: 'sessionMedium', stringFilter: { value: 'referral' } } },
+      metrics: [{ name: 'sessions' }, { name: 'totalUsers' }],
+      orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+      limit: 30
+    });
+    const refData = await gFetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, { method:'POST', body: bodyRef });
+
+    renderGA4Traffic(smData, refData, startDate, endDate);
+  } catch(e) {
+    el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> 取得失敗: ${e.message}</div>`;
+  }
+}
+
+function renderGA4Traffic(smData, refData, startDate, endDate) {
+  const el = document.getElementById('ga4-traffic-data');
+
+  // ① 参照元/メディアテーブル
+  const smRows = smData.rows || [];
+  const totalSessions = smRows.reduce((s, r) => s + parseInt(r.metricValues[0].value||0), 0);
+
+  // チャネル色
+  const channelColor = sm => {
+    if (!sm || sm === '(not set)') return '#aaa';
+    const s = sm.toLowerCase();
+    if (s.includes('organic')) return '#16a34a';
+    if (s.includes('cpc') || s.includes('paid')) return '#dc2626';
+    if (s.includes('referral')) return '#3366ff';
+    if (s.includes('direct') || s === '(direct) / (none)') return '#888';
+    if (s.includes('social') || s.includes('facebook') || s.includes('instagram') || s.includes('line')) return '#7c3aed';
+    if (s.includes('email')) return '#e37400';
+    return '#555';
+  };
+
+  let html = `
+    <div style="font-size:13px;color:#666;margin-bottom:12px">集計期間：${startDate} 〜 ${endDate}　合計セッション：<strong>${totalSessions.toLocaleString()}</strong></div>
+
+    <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:14px;color:#1a1a2e"><i class="ti ti-arrows-split" style="color:#3366ff"></i> 参照元/メディア別セッション</h3>`;
+
+  // シェアバー付きテーブル
+  html += `<div class="table-wrap"><table style="min-width:600px">
+    <thead><tr>
+      <th style="min-width:220px">参照元 / メディア</th>
+      <th>シェア</th>
+      <th>セッション</th>
+      <th>ユーザー</th>
+      <th>エンゲージ率</th>
+      <th>平均滞在</th>
+    </tr></thead><tbody>`;
+
+  for (const r of smRows) {
+    const sm = r.dimensionValues[0].value;
+    const sessions = parseInt(r.metricValues[0].value||0);
+    const users = parseInt(r.metricValues[1].value||0);
+    const engRate = parseFloat(r.metricValues[2].value||0);
+    const avgDur = parseFloat(r.metricValues[3].value||0);
+    const pct = totalSessions > 0 ? (sessions / totalSessions * 100) : 0;
+    const color = channelColor(sm);
+
+    html += `<tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
+          <span style="font-size:13px;font-weight:600;color:#1a1a2e">${esc(sm)}</span>
+        </div>
+      </td>
+      <td style="min-width:120px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:6px;background:#f0f2fa;border-radius:3px">
+            <div style="width:${Math.min(pct,100).toFixed(1)}%;height:6px;background:${color};border-radius:3px"></div>
+          </div>
+          <span style="font-size:12px;color:#666;white-space:nowrap">${pct.toFixed(1)}%</span>
+        </div>
+      </td>
+      <td style="font-weight:600;color:#1a1a2e">${sessions.toLocaleString()}</td>
+      <td>${users.toLocaleString()}</td>
+      <td style="color:${engRate<0.3?'#dc2626':engRate>0.5?'#16a34a':'#ca8a04'};font-weight:600">${(engRate*100).toFixed(1)}%</td>
+      <td style="color:${avgDur<30?'#dc2626':'#333'}">${Math.round(avgDur)}秒</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div></div>`;
+
+  // ② 参照元URL
+  const refRows = refData.rows || [];
+  if (refRows.length) {
+    html += `<div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:14px;color:#1a1a2e"><i class="ti ti-link" style="color:#3366ff"></i> 参照元URL（リファラル詳細）</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:12px">どのページから流入してきたか。直前に訪れていたページのURL一覧です。</p>
+      <div class="table-wrap"><table style="min-width:500px">
+        <thead><tr>
+          <th>参照元ドメイン</th>
+          <th style="min-width:280px">参照URL</th>
+          <th>セッション</th>
+          <th>ユーザー</th>
+        </tr></thead><tbody>`;
+
+    for (const r of refRows) {
+      const source = r.dimensionValues[0].value;
+      const url = r.dimensionValues[1].value;
+      const sessions = parseInt(r.metricValues[0].value||0);
+      const users = parseInt(r.metricValues[1].value||0);
+      html += `<tr>
+        <td style="font-size:12px;font-weight:600;white-space:nowrap;color:#3366ff">${esc(source)}</td>
+        <td style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          <a href="${esc(url)}" target="_blank" style="color:#555;text-decoration:none" title="${esc(url)}">${esc(url)}</a>
+        </td>
+        <td style="font-weight:600">${sessions.toLocaleString()}</td>
+        <td>${users.toLocaleString()}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div></div>`;
+  }
+
+  el.innerHTML = html;
+}
 async function loadGA4Properties() {
   const el = document.getElementById('ga4-data');
   el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>GA4プロパティを取得中...</p></div>';
@@ -639,10 +902,16 @@ async function fetchGA4Data() {
   const endDate = document.getElementById('ga4-end').value;
   const el = document.getElementById('ga4-result');
   el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>GA4データを取得中...</p></div>';
+
+  // プロパティIDを保存してトラフィック獲得タブでも使えるようにする
+  _ga4ActivePropId = propId;
+  document.getElementById('ga4-traffic-data').innerHTML =
+    '<div class="empty"><i class="ti ti-arrows-split"></i><p>「トラフィック獲得」タブで取得できます</p></div>';
+
   try {
     const body = JSON.stringify({
       dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'pagePath' }],
+      dimensions: [{ name: 'pageLocation' }],
       metrics: [
         { name: 'sessions' },
         { name: 'engagementRate' },
@@ -709,7 +978,7 @@ function renderGA4(rows, el) {
         ${badPages.slice(0,10).map(p=>`
           <div class="ga4-bad-item">
             <i class="ti ti-alert-circle" style="color:#dc2626;flex-shrink:0"></i>
-            <span class="page">${esc(p.path)}</span>
+            <a href="${esc(p.path)}" target="_blank" class="page" style="color:#1a1a2e;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(p.path)}</a>
             <span class="metrics">直帰率 ${(p.bounceRate*100).toFixed(0)}% / エンゲージ ${(p.engRate*100).toFixed(0)}% / 滞在 ${Math.round(p.avgDur)}秒 / ${p.sessions}セッション</span>
           </div>`).join('')}
         ${badPages.length>10?`<div style="font-size:12px;color:#aaa;padding:6px 12px">他 ${badPages.length-10} ページ（表下に全件表示）</div>`:''}
@@ -755,7 +1024,9 @@ function renderGA4(rows, el) {
 
 function renderGA4Rows(pages) {
   return pages.map(p => `<tr>
-    <td style="font-size:12px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(p.path)}">${esc(p.path)}</td>
+    <td style="max-width:260px">
+      <a href="${esc(p.path)}" target="_blank" style="font-size:12px;color:#1a1a2e;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:240px" title="${esc(p.path)}" onmouseover="this.style.color='#3366ff'" onmouseout="this.style.color='#1a1a2e'">${esc(p.path)}</a>
+    </td>
     <td>${reactionBadge(p.level)}</td>
     <td>${p.sessions.toLocaleString()}</td>
     <td style="color:${p.bounceRate>0.7?'#dc2626':p.bounceRate>0.5?'#ca8a04':'#16a34a'};font-weight:600">${(p.bounceRate*100).toFixed(1)}%</td>
@@ -871,6 +1142,12 @@ async function fetchAllGSC() {
   const startDate = document.getElementById('date-start')?.value;
   const endDate = document.getElementById('date-end')?.value;
   if (!siteUrl) return;
+
+  // グローバルサイト連動
+  S.activeSite = siteUrl;
+  S.activeDomain = siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  updateActiveSiteBar();
+
   // キーワードとページ並行取得
   fetchGSCKeywords(siteUrl, startDate, endDate);
   fetchGSCPages(siteUrl, startDate, endDate);
@@ -1142,8 +1419,8 @@ async function fetchGSCPages(siteUrl, startDate, endDate) {
         <div style="font-size:13px;font-weight:700;color:#b45309;margin-bottom:8px"><i class="ti ti-alert-triangle"></i> 表示されているのにクリックされていないページ（${flagged.length}件）</div>
         <div style="font-size:12px;color:#92400e;margin-bottom:10px">表示回数100以上でクリック数0 → タイトル・ディスクリプションの改善でCTR改善の余地あり</div>
         ${flagged.slice(0,5).map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff;border-radius:6px;margin-bottom:4px;font-size:12px">
-          <i class="ti ti-eye" style="color:#f59e0b;flex-shrink:0"></i>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1a1a2e">${esc(p.url)}</span>
+          <a href="${esc(p.url)}" target="_blank" style="color:#f59e0b;flex-shrink:0;text-decoration:none"><i class="ti ti-eye"></i></a>
+          <a href="${esc(p.url)}" target="_blank" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1a1a2e;text-decoration:none">${esc(p.url)}</a>
           <span style="color:#aaa;white-space:nowrap">表示 ${p.impressions.toLocaleString()} / 順位 ${p.position}</span>
         </div>`).join('')}
         ${flagged.length>5?`<div style="font-size:11px;color:#aaa;padding:4px 10px">他 ${flagged.length-5} ページ（下の表に全件）</div>`:''}
@@ -1251,13 +1528,21 @@ function renderURLChecker() {
     <h3 style="font-size:14px;font-weight:700;margin-bottom:6px"><i class="ti ti-zoom-check" style="color:#3366ff"></i> URLインデックス状態チェック</h3>
     <p style="font-size:13px;color:#888;margin-bottom:16px">URLを入力してGoogleのインデックス状態・最終クロール日・問題点を確認します</p>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <input type="text" id="url-check-input" placeholder="https://example.com/page/" 
+      <input type="text" id="url-check-input" placeholder="https://example.com/page/"
         style="flex:1;min-width:280px;padding:10px 14px;border:1.5px solid #dde;border-radius:8px;font-size:14px;outline:none"
         onkeydown="if(event.key==='Enter')checkURL()">
       <button class="btn btn-b" onclick="checkURL()"><i class="ti ti-search"></i> チェック</button>
+      <button class="btn btn-o btn-sm" onclick="openPageSpeed()" title="PageSpeed Insightsで開く" style="white-space:nowrap"><i class="ti ti-gauge" style="color:#e37400"></i> PageSpeed</button>
+      <a href="https://ccd.cloud/" target="_blank" class="btn btn-o btn-sm" style="text-decoration:none;white-space:nowrap"><i class="ti ti-copy"></i> コピコン</a>
     </div>
     <div id="url-check-result"></div>
   </div>`;
+}
+
+function openPageSpeed() {
+  const url = document.getElementById('url-check-input')?.value.trim() || S.activeSite || '';
+  if (!url) { alert('URLを入力してください'); return; }
+  window.open(`https://pagespeed.web.dev/analysis?url=${encodeURIComponent(url)}&form_factor=mobile&hl=ja`, '_blank');
 }
 
 async function checkURL() {
@@ -1383,6 +1668,26 @@ function renderIndexPanel() {
         </label>`).join('')}
       </div>
     </div>
+
+    <div style="background:#fff;border:1px solid #e4e7f0;border-radius:10px;padding:20px 22px">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:14px;color:#1a1a2e"><i class="ti ti-alert-triangle" style="color:#f59e0b"></i> その他の注意すべき問題 — 早見表</h3>
+      <div style="display:grid;gap:10px;font-size:13px">
+        ${[
+          ['🔁','重複コンテンツ','同じ内容のページが複数ある。canonicalで正規URLを指定し、類似ページを統合する。','#fffbeb','#92400e','#fde68a'],
+          ['📱','モバイルフレンドリー非対応','スマホ表示が崩れているとモバイル検索で不利。レスポンシブデザインへの対応が必須。','#fff1f2','#be123c','#fecdd3'],
+          ['⚡','Core Web Vitals低下','LCP・INP・CLSの3指標。LCPは2.5秒以内、INPは200ms以内が目安。画像最適化・サーバー改善で対処。','#fff1f2','#be123c','#fecdd3'],
+          ['🔗','リンク切れ（404エラー）','内部・外部リンク切れは評価を下げる。定期的にScreaming Frogや GSCで確認・修正。','#fffbeb','#92400e','#fde68a'],
+          ['📉','CTR低下（クリック率不足）','表示されているのにクリックされない。タイトル・ディスクリプションを検索意図に合わせて見直す。','#fffbeb','#92400e','#fde68a'],
+          ['🔒','HTTPSへの未対応','http://のままのサイトはセキュリティ警告が出てユーザー離脱・SEO低下の原因になる。','#fff1f2','#be123c','#fecdd3'],
+          ['📝','構造化データ不足','LocalBusiness・FAQ・Breadcrumbなどのschema.orgを追加するとリッチスニペット表示につながる。','#f0f9ff','#0369a1','#bae6fd'],
+          ['🗺️','XMLサイトマップ未更新','新規ページ追加後にサイトマップが更新されていないと発見が遅れる。自動生成プラグインの設定を確認。','#f0f9ff','#0369a1','#bae6fd'],
+        ].map(([icon,title,desc,bg,textColor,border])=>`
+          <div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:12px 14px">
+            <div style="font-weight:700;color:${textColor};margin-bottom:4px">${icon} ${title}</div>
+            <div style="color:#555;line-height:1.6">${desc}</div>
+          </div>`).join('')}
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1462,6 +1767,15 @@ function daysDiff(a, b) {
 }
 
 let _followData = [];
+let _followDataKumamoto = [];
+let _followCurrentTab = 'main';
+
+function switchFollowTab(tab) {
+  _followCurrentTab = tab;
+  document.getElementById('follow-subtab-main').style.cssText = `padding:6px 18px;font-size:12px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:${tab==='main'?'#3366ff':'#f0f2fa'};color:${tab==='main'?'#fff':'#666'};cursor:pointer`;
+  document.getElementById('follow-subtab-kumamoto').style.cssText = `padding:6px 18px;font-size:12px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:${tab==='kumamoto'?'#3366ff':'#f0f2fa'};color:${tab==='kumamoto'?'#fff':'#666'};cursor:pointer`;
+  applyFollowFilter();
+}
 
 async function loadFollowSheet() {
   const urlInput = document.getElementById('sheet-url').value.trim();
@@ -1472,102 +1786,105 @@ async function loadFollowSheet() {
     return;
   }
 
-  // スプレッドシートIDを抽出
   const match = urlInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   if (!match) { el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> 正しいGoogle SpreadsheetsのURLを入力してください</div>'; return; }
   const sheetId = match[1];
 
-  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>シートを読み込み中...</p></div>';
+  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>シートを読み込み中（全案件 + 熊本案件）...</p></div>';
 
   try {
-    // シート名を取得
-    const meta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`);
-    const sheetName = meta.sheets?.[0]?.properties?.title || 'シート1';
-
-    // 全データ取得
-    const res = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}`);
-    const rows = res.values || [];
-    if (rows.length < 3) { el.innerHTML = '<div class="err">データが少なすぎます</div>'; return; }
-
-    // ヘッダー解析（1行目：月ヘッダー、2行目：サブヘッダー）
-    const headerRow0 = rows[0] || []; // 月ヘッダー行
-    const headerRow1 = rows[1] || []; // サブヘッダー行
-
-    // 月カラムのマッピング: { colIndex: { month:'2026/1', type:'送付日'|'フォロー日程' } }
-    const monthCols = {};
-    let currentMonth = '';
-    for (let i = 0; i < Math.max(headerRow0.length, headerRow1.length); i++) {
-      const h0 = (headerRow0[i] || '').toString().trim();
-      const h1 = (headerRow1[i] || '').toString().trim();
-      if (h0.match(/^\d{4}[\/\-]\d{1,2}$/) || h0.match(/^\d{4}年\d{1,2}月$/)) currentMonth = h0;
-      if (currentMonth && (h1.includes('フォロー日程') || h1.includes('フォロー日'))) {
-        monthCols[i] = { month: currentMonth, type: 'follow' };
-      }
-      if (currentMonth && (h1.includes('送付') || h1.includes('送付日'))) {
-        monthCols[i] = { month: currentMonth, type: 'send' };
-      }
-    }
-
-    const today = new Date(); today.setHours(0,0,0,0);
-    const oneMonthLater = addMonths(today, 1);
-    const twoMonthsLater = addMonths(today, 2);
-
-    // データ行をパース
-    _followData = [];
-    for (let ri = 2; ri < rows.length; ri++) {
-      const row = rows[ri];
-      if (!row || !row[2]) continue; // 店舗名なければスキップ
-
-      const storeName = (row[2] || '').trim();
-      const website = (row[4] || '').trim();
-      const startDateRaw = (row[11] || '').trim(); // L列
-      const startDate = parseJPDate(startDateRaw);
-      const analysisDate = calc6MonthBizDay(startDate); // 6ヶ月後営業日
-      const alertDate = analysisDate ? addMonths(analysisDate, -1) : null; // 1ヶ月前
-
-      // 月別フォロー日を収集
-      const followDates = [];
-      for (const [colIdx, colInfo] of Object.entries(monthCols)) {
-        if (colInfo.type !== 'follow') continue;
-        const val = (row[parseInt(colIdx)] || '').trim();
-        if (!val || val === '−' || val === '-') continue;
-        const d = parseJPDate(val) || { raw: val, date: null };
-        const month = colInfo.month;
-        // 月から大まかな日付を推定
-        const mMatch = month.match(/(\d{4})[\/](\d{1,2})/);
-        const baseDate = mMatch ? new Date(parseInt(mMatch[1]), parseInt(mMatch[2])-1, 1) : null;
-        const parsedDate = d instanceof Date ? d : (d.date || baseDate);
-        followDates.push({ month, raw: val, date: parsedDate, isPast: parsedDate ? parsedDate <= today : baseDate ? baseDate <= today : false });
-      }
-
-      const pastFollows = followDates.filter(f => f.isPast).sort((a,b) => (b.date||0)-(a.date||0));
-      const futureFollows = followDates.filter(f => !f.isPast).sort((a,b) => (a.date||0)-(b.date||0));
-      const lastFollow = pastFollows[0] || null;
-      const nextFollow = futureFollows[0] || null;
-
-      // アラート判定
-      const analysisAlert = alertDate && today >= alertDate && (!analysisDate || today <= analysisDate);
-      const gapAlert = lastFollow?.date && nextFollow?.date
-        ? daysDiff(lastFollow.date, nextFollow.date) > 35
-        : lastFollow?.date && !nextFollow
-          ? daysDiff(lastFollow.date, today) > 35
-          : false;
-
-      _followData.push({ storeName, website, startDate, startDateRaw, analysisDate, alertDate, analysisAlert, pastFollows, futureFollows, lastFollow, nextFollow, gapAlert, rowIdx: ri });
-    }
-
+    _followData = await parseFollowRows(sheetId, '全案件', 4);          // Webサイト col4
+    _followDataKumamoto = await parseFollowRows(sheetId, '熊本案件（手入力用）', 5); // HPURL col5
     applyFollowFilter();
   } catch(e) {
-    el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> 読み込み失敗: ${e.message}<br><small>シートの共有設定でリンクを知っている全員が閲覧可能か、またはGoogleログイン済みか確認してください</small></div>`;
+    el.innerHTML = `<div class="err"><i class="ti ti-alert-circle"></i> 読み込み失敗: ${e.message}<br><small>シートの共有設定を確認してください</small></div>`;
   }
+}
+
+async function parseFollowRows(sheetId, sheetName, websiteCol) {
+  const res = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}`);
+  const rows = res.values || [];
+  if (rows.length < 3) return [];
+
+  const headerRow0 = rows[0] || [];
+  const headerRow1 = rows[1] || [];
+
+  const monthCols = {};
+  let currentMonth = '';
+  for (let i = 0; i < Math.max(headerRow0.length, headerRow1.length); i++) {
+    const h0 = (headerRow0[i] || '').toString().trim();
+    const h1 = (headerRow1[i] || '').toString().trim();
+    if (h0.match(/^\d{4}[\/\-]\d{1,2}$/) || h0.match(/^\d{4}年\d{1,2}月$/)) currentMonth = h0;
+    if (currentMonth && (h1.includes('フォロー日程') || h1.includes('フォロー日'))) {
+      monthCols[i] = { month: currentMonth, type: 'follow' };
+    }
+    if (currentMonth && (h1.includes('送付') || h1.includes('送付日'))) {
+      monthCols[i] = { month: currentMonth, type: 'send' };
+    }
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const result = [];
+  for (let ri = 2; ri < rows.length; ri++) {
+    const row = rows[ri];
+    if (!row || !row[2]) continue;
+
+    const storeName = (row[2] || '').trim();
+    const tag = (row[1] || '').trim(); // B列 = タグ
+    const website = (row[websiteCol] || '').trim();
+    const startDateRaw = (row[11] || '').trim();
+    const startDate = parseJPDate(startDateRaw);
+    const analysisDate = calc6MonthBizDay(startDate);
+    const alertDate = analysisDate ? addMonths(analysisDate, -1) : null;
+
+    const followDates = [];
+    for (const [colIdx, colInfo] of Object.entries(monthCols)) {
+      if (colInfo.type !== 'follow') continue;
+      const val = (row[parseInt(colIdx)] || '').trim();
+      if (!val || val === '−' || val === '-') continue;
+      const month = colInfo.month;
+      const mMatch = month.match(/(\d{4})[\/](\d{1,2})/);
+      const baseDate = mMatch ? new Date(parseInt(mMatch[1]), parseInt(mMatch[2])-1, 1) : null;
+      const parsedDate = parseJPDate(val) || baseDate;
+      followDates.push({ month, raw: val, date: parsedDate, isPast: parsedDate ? parsedDate <= today : baseDate ? baseDate <= today : false });
+    }
+
+    const pastFollows = followDates.filter(f => f.isPast).sort((a,b) => (b.date||0)-(a.date||0));
+    const futureFollows = followDates.filter(f => !f.isPast).sort((a,b) => (a.date||0)-(b.date||0));
+    const lastFollow = pastFollows[0] || null;
+    const nextFollow = futureFollows[0] || null;
+
+    const analysisAlert = alertDate && today >= alertDate && (!analysisDate || today <= analysisDate);
+    const gapAlert = lastFollow?.date && nextFollow?.date
+      ? daysDiff(lastFollow.date, nextFollow.date) > 35
+      : lastFollow?.date && !nextFollow
+        ? daysDiff(lastFollow.date, today) > 35
+        : false;
+
+    result.push({ storeName, tag, website, startDate, startDateRaw, analysisDate, alertDate, analysisAlert, pastFollows, futureFollows, lastFollow, nextFollow, gapAlert, rowIdx: ri });
+  }
+  return result;
 }
 
 function applyFollowFilter() {
   const filter = document.getElementById('follow-filter')?.value || 'all';
+  const tagFilter = document.getElementById('follow-tag-filter')?.value || 'all';
   const search = (document.getElementById('follow-search')?.value || '').toLowerCase();
-  let data = _followData.filter(d => !search || d.storeName.toLowerCase().includes(search));
+
+  // 現在のタブのデータを選択
+  const baseData = _followCurrentTab === 'kumamoto' ? _followDataKumamoto : _followData;
+
+  let data = baseData.filter(d => {
+    if (search && !d.storeName.toLowerCase().includes(search)) return false;
+    if (tagFilter !== 'all') {
+      const tags = d.tag ? d.tag.split(/[,、]/).map(t=>t.trim()) : [];
+      if (!tags.some(t => t.includes(tagFilter))) return false;
+    }
+    return true;
+  });
   if (filter === 'alert-analysis') data = data.filter(d => d.analysisAlert);
   if (filter === 'alert-gap') data = data.filter(d => d.gapAlert);
+  if (filter === 'no-start') data = data.filter(d => !d.startDateRaw);
   if (filter === 'upcoming') {
     const today = new Date();
     const twoM = addMonths(today, 2);
@@ -2145,10 +2462,151 @@ function today(){ return new Date().toISOString().slice(0,10); }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ============================================================
+   SE Ranking サブタブ / LLMO AIトラッカー
+   ============================================================ */
+function switchSerSub(sub) {
+  document.getElementById('ser-panel-rank').style.display = sub === 'rank' ? 'block' : 'none';
+  document.getElementById('ser-panel-llmo').style.display = sub === 'llmo' ? 'block' : 'none';
+  document.getElementById('ser-sub-rank').style.cssText = `padding:7px 18px;font-size:13px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:${sub==='rank'?'#3366ff':'#f0f2fa'};color:${sub==='rank'?'#fff':'#666'};cursor:pointer`;
+  document.getElementById('ser-sub-llmo').style.cssText = `padding:7px 18px;font-size:13px;font-weight:600;border:none;border-radius:6px 6px 0 0;background:${sub==='llmo'?'#7c3aed':'#f0f2fa'};color:${sub==='llmo'?'#fff':'#666'};cursor:pointer`;
+}
+
+function dopLLMO(e) {
+  e.preventDefault();
+  dlv('drop-llmo');
+  const f = e.dataTransfer?.files?.[0];
+  if (f) loadLLMOCSV({ target: { files: [f] } });
+}
+
+async function loadLLMOCSV(e) {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  const text = await f.text();
+  const lines = text.replace(/^\uFEFF/, '').split('\n').filter(l => l.trim());
+  if (lines.length < 2) { document.getElementById('llmo-out').innerHTML = '<div class="err">データが少なすぎます</div>'; return; }
+
+  // 1行目: タイトル（プロジェクト名など）
+  const projectTitle = lines[0].replace(/"/g, '').trim();
+
+  // 2行目: ヘッダー
+  const parseCsvRow = r => {
+    const cols = []; let cur = ''; let inQ = false;
+    for (const c of r) {
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  };
+
+  const headers = parseCsvRow(lines[1]);
+  // 日付カラムを検出 (例: "2026-05-16 メンションの順位")
+  const dateCols = [];
+  for (let i = 0; i < headers.length; i++) {
+    const m = headers[i].match(/(\d{4}-\d{2}-\d{2})\s+(メンション|リンク)/);
+    if (m) dateCols.push({ idx: i, date: m[1], type: m[2] === 'メンション' ? 'mention' : 'link' });
+  }
+
+  const dates = [...new Set(dateCols.map(d => d.date))].sort();
+
+  // データ行をパース
+  const rows = [];
+  for (let i = 2; i < lines.length; i++) {
+    const cols = parseCsvRow(lines[i]);
+    if (!cols[0] || cols[0] === '一般') continue; // 一般行スキップ
+    const kw = cols[0];
+    const url = cols[1] || '';
+    const vol = cols[2] || '';
+    const intent = cols[3] || '';
+    const overlapPct = cols[5] || '';
+
+    const byDate = {};
+    for (const dc of dateCols) {
+      const val = (cols[dc.idx] || '').trim();
+      if (!byDate[dc.date]) byDate[dc.date] = {};
+      byDate[dc.date][dc.type] = val;
+    }
+
+    rows.push({ kw, url, vol, intent, overlapPct, byDate });
+  }
+
+  renderLLMO(rows, dates, projectTitle);
+  document.getElementById('fs-llmo').value = '';
+}
+
+function renderLLMO(rows, dates, title) {
+  const el = document.getElementById('llmo-out');
+  if (!rows.length) { el.innerHTML = '<div class="empty">データがありません</div>'; return; }
+
+  // 概要サマリー
+  const total = rows.length;
+  const mentioned = rows.filter(r => dates.some(d => r.byDate[d]?.mention && r.byDate[d].mention !== 'AIOなし' && r.byDate[d].mention !== '-')).length;
+  const latestDate = dates[dates.length - 1];
+  const linked = rows.filter(r => {
+    const v = r.byDate[latestDate]?.link;
+    return v && v !== 'AIOなし' && v !== '-';
+  }).length;
+
+  let html = `
+    <div style="background:#f5f0ff;border:1px solid #d8b4fe;border-radius:10px;padding:16px 20px;margin-bottom:16px">
+      <div style="font-size:13px;color:#6d28d9;font-weight:700;margin-bottom:10px"><i class="ti ti-brain"></i> ${esc(title)}</div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div style="text-align:center"><div style="font-size:24px;font-weight:800;color:#7c3aed">${total}</div><div style="font-size:11px;color:#888">追跡キーワード</div></div>
+        <div style="text-align:center"><div style="font-size:24px;font-weight:800;color:#16a34a">${mentioned}</div><div style="font-size:11px;color:#888">AIO出現あり</div></div>
+        <div style="text-align:center"><div style="font-size:24px;font-weight:800;color:#3366ff">${linked}</div><div style="font-size:11px;color:#888">リンク掲載（最新）</div></div>
+        <div style="text-align:center"><div style="font-size:24px;font-weight:800;color:#e8442e">${total - mentioned}</div><div style="font-size:11px;color:#888">AIOなし</div></div>
+      </div>
+    </div>
+    <div class="table-wrap"><table style="min-width:600px">
+      <thead><tr>
+        <th style="min-width:180px">キーワード</th>
+        <th>検索Vol</th>
+        ${dates.map(d => `<th style="min-width:100px;text-align:center">${d.slice(5)}<br><span style="font-size:10px;font-weight:400;color:#aaa">メンション/リンク</span></th>`).join('')}
+      </tr></thead>
+      <tbody>`;
+
+  for (const r of rows) {
+    const cells = dates.map(d => {
+      const m = r.byDate[d]?.mention || '-';
+      const l = r.byDate[d]?.link || '-';
+      const isAio = m !== 'AIOなし' && m !== '-';
+      const isLink = l !== 'AIOなし' && l !== '-';
+      const bg = isLink ? '#f0fdf4' : isAio ? '#fefce8' : '#fff';
+      return `<td style="text-align:center;background:${bg};font-size:12px">
+        <span style="color:${isAio?'#16a34a':'#ccc'}">${esc(m)}</span>
+        <span style="color:#aaa">/</span>
+        <span style="color:${isLink?'#3366ff':'#ccc'}">${esc(l)}</span>
+      </td>`;
+    }).join('');
+
+    html += `<tr>
+      <td>
+        <div style="font-size:13px;font-weight:600;color:#1a1a2e">${esc(r.kw)}</div>
+        ${r.url ? `<div style="font-size:11px;color:#3366ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px"><a href="${esc(r.url)}" target="_blank" style="color:#3366ff;text-decoration:none">${esc(r.url.replace(/^https?:\/\//,''))}</a></div>` : ''}
+      </td>
+      <td style="text-align:center;font-size:12px">${esc(r.vol)||'−'}</td>
+      ${cells}
+    </tr>`;
+  }
+
+  html += `</tbody></table></div>
+    <div style="font-size:12px;color:#aaa;padding:8px 0">緑背景=リンク掲載 / 黄背景=メンションのみ / 白=AIOなし　計${rows.length}キーワード</div>`;
+  el.innerHTML = html;
+}
+
+/* ============================================================
    Zoho CRM
    ============================================================ */
 const ZOHO_WORKER = 'https://zoho-proxy.linkwin-tokyo.workers.dev';
 let _zohoData = [];
+
+// Org IDをlocalStorageから復元
+window.addEventListener('DOMContentLoaded', () => {
+  const savedOrgId = localStorage.getItem('zohoOrgId') || '';
+  const orgInput = document.getElementById('zoho-org-id');
+  if (orgInput) orgInput.value = savedOrgId;
+});
 
 async function loadZoho() {
   const el = document.getElementById('zoho-data');
@@ -2191,6 +2649,7 @@ async function loadZoho() {
 function applyZohoFilter() {
   const q = (document.getElementById('zoho-search')?.value||'').toLowerCase();
   const status = document.getElementById('zoho-filter-status')?.value||'all';
+  const tagFilter = document.getElementById('zoho-filter-tag')?.value||'all';
   const person = document.getElementById('zoho-filter-person')?.value||'all';
   const today = new Date(); today.setHours(0,0,0,0);
 
@@ -2202,6 +2661,10 @@ function applyZohoFilter() {
       if (!alert) return false;
     }
     if (person !== 'all' && d.person !== person) return false;
+    if (tagFilter !== 'all') {
+      const tags = d.tags || [];
+      if (!tags.some(t => t.includes(tagFilter))) return false;
+    }
     return true;
   });
   renderZohoTable(data);
@@ -2252,7 +2715,12 @@ function renderZohoTable(data) {
     const links = [];
     if (d.website) links.push(`<a href="${esc(d.website)}" target="_blank" style="color:#3366ff;font-size:11px;margin-right:6px" title="Webサイト"><i class="ti ti-world"></i></a>`);
     if (d.ga4) links.push(`<a href="${esc(d.ga4)}" target="_blank" style="color:#e37400;font-size:11px;margin-right:6px" title="GA4"><i class="ti ti-chart-line"></i></a>`);
-    if (d.hearingSheet) links.push(`<a href="${esc(d.hearingSheet)}" target="_blank" style="color:#16a34a;font-size:11px" title="ヒアリングシート"><i class="ti ti-file-text"></i></a>`);
+    if (d.hearingSheet) links.push(`<a href="${esc(d.hearingSheet)}" target="_blank" style="color:#16a34a;font-size:11px;margin-right:6px" title="ヒアリングシート"><i class="ti ti-file-text"></i></a>`);
+    const orgId = (document.getElementById('zoho-org-id')?.value || localStorage.getItem('zohoOrgId') || '').trim();
+    if (orgId && d.id) {
+      const numericId = d.id.replace(/^zcrm_/, '');
+      links.push(`<a href="https://crm.zoho.jp/crm/org${orgId}/tab/Stores/${numericId}" target="_blank" style="color:#e8442e;font-size:11px" title="Zoho CRMで開く"><i class="ti ti-building-store"></i></a>`);
+    }
 
     html += `<tr style="${isAlert?'background:#fff8f8':''}">
       <td>
