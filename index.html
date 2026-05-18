@@ -624,6 +624,8 @@ function switchTab(tab) {
   document.getElementById('panel-'+tab).classList.add('active');
   const needsLogin = (tab === 'gsc' || tab === 'ga4') && !S.accessToken;
   document.getElementById('login-banner').style.display = needsLogin ? 'block' : 'none';
+  // GA4タブに切り替えたとき自動マッチング
+  if (tab === 'ga4' && S.activeSite) syncGA4WithActiveSite();
 }
 
 /* ============================================================
@@ -639,14 +641,68 @@ function updateActiveSiteBar() {
     `https://pagespeed.web.dev/analysis?url=${encodeURIComponent(S.activeSite)}&form_factor=mobile&hl=ja`;
 }
 
-function syncGA4WithActiveSite() {
-  if (!S.activeDomain) return;
-  // GA4タブに切り替えてドメインで絞り込む
-  switchTab('ga4');
-  switchGA4Sub('pages');
-  const q = S.activeDomain.replace(/^www\./, '').split('/')[0];
+async function syncGA4WithActiveSite() {
+  if (!S.activeSite || !S.ga4Props) return;
+  const sel = document.getElementById('ga4-prop-sel');
+  const resultEl = document.getElementById('ga4-result');
+  if (!sel || !resultEl) return;
+
+  const domain = S.activeDomain.replace(/^www\./, '');
+
+  // 検索欄リセット・全件表示に戻す
   const searchInput = document.querySelector('#ga4-panel-pages input[placeholder="名前で検索..."]');
-  if (searchInput) { searchInput.value = q; filterGA4Props(q); }
+  if (searchInput) searchInput.value = '';
+  sel.innerHTML = S.ga4Props.map(p=>`<option value="${esc(p.id)}">[${esc(p.account)}] ${esc(p.name)}</option>`).join('');
+
+  // プロパティ名での簡易マッチ（即時）
+  const quickMatch = S.ga4Props.find(p =>
+    (p.name||'').toLowerCase().includes(domain.toLowerCase()) ||
+    (p.domain||'').toLowerCase().includes(domain.toLowerCase())
+  );
+  if (quickMatch) { applyGA4Match(quickMatch, sel, resultEl); return; }
+
+  // ストリームURLで照合（全プロパティのDataStreams APIを並列取得）
+  resultEl.innerHTML = `<div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:8px;padding:12px 16px;font-size:13px;color:#3730a3">
+    <i class="ti ti-loader-2 spin"></i> ストリームURLで照合中... (${S.ga4Props.length}件)
+  </div>`;
+
+  const BATCH = 10;
+  let found = null;
+  for (let i = 0; i < S.ga4Props.length && !found; i += BATCH) {
+    const batch = S.ga4Props.slice(i, i + BATCH);
+    await Promise.all(batch.map(async p => {
+      if (p.domain !== undefined) return; // キャッシュ済み
+      try {
+        const data = await gFetch(`https://analyticsadmin.googleapis.com/v1beta/properties/${p.id}/dataStreams`);
+        (data.dataStreams || []).forEach(stream => {
+          const uri = stream.webStreamData?.defaultUri || '';
+          if (uri) p.domain = uri.replace(/^https?:\/\//,'').replace(/\/$/,'').replace(/^www\./,'');
+        });
+        if (!p.domain) p.domain = null;
+      } catch(e) { p.domain = null; }
+    }));
+    found = batch.find(p => p.domain && (p.domain.includes(domain) || domain.includes(p.domain)));
+  }
+
+  if (found) {
+    applyGA4Match(found, sel, resultEl);
+  } else {
+    sel.value = '';
+    resultEl.innerHTML = `
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;font-size:13px;color:#92400e">
+        <div style="font-weight:700;margin-bottom:6px"><i class="ti ti-alert-triangle"></i> 「${esc(S.activeDomain)}」に一致するGA4プロパティが見つかりませんでした</div>
+        <div style="line-height:1.8">① ドロップダウンから手動で選択<br>② GA4管理画面でプロパティIDを確認して下の欄に直接入力してください</div>
+      </div>`;
+  }
+}
+
+function applyGA4Match(prop, sel, resultEl) {
+  sel.value = prop.id;
+  resultEl.innerHTML = `
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 16px;font-size:13px;color:#15803d;display:flex;align-items:center;gap:8px">
+      <i class="ti ti-circle-check" style="font-size:16px"></i>
+      <span><strong>${esc(prop.name)}</strong> を自動選択しました。「データ取得」を押してください。</span>
+    </div>`;
 }
 
 /* ============================================================
@@ -892,7 +948,11 @@ function filterGA4Props(q) {
     (p.account||'').toLowerCase().includes(q.toLowerCase()) ||
     p.id.includes(q)
   );
-  sel.innerHTML = filtered.map(p=>`<option value="${esc(p.id)}">[${esc(p.account)}] ${esc(p.name)}</option>`).join('');
+  if (filtered.length === 0) {
+    sel.innerHTML = '<option value="">— 一致するプロパティなし（IDを直接入力してください）—</option>';
+  } else {
+    sel.innerHTML = filtered.map(p=>`<option value="${esc(p.id)}">[${esc(p.account)}] ${esc(p.name)}</option>`).join('');
+  }
 }
 
 async function fetchGA4Data() {
@@ -901,7 +961,11 @@ async function fetchGA4Data() {
   const startDate = document.getElementById('ga4-start').value;
   const endDate = document.getElementById('ga4-end').value;
   const el = document.getElementById('ga4-result');
-  el.innerHTML = '<div class="loading-box"><i class="ti ti-loader-2 spin"></i><p>GA4データを取得中...</p></div>';
+
+  if (!propId) {
+    el.innerHTML = '<div class="err"><i class="ti ti-alert-circle"></i> プロパティが選択されていません。ドロップダウンから選択するか、プロパティIDを直接入力してください。</div>';
+    return;
+  }
 
   // プロパティIDを保存してトラフィック獲得タブでも使えるようにする
   _ga4ActivePropId = propId;
@@ -1142,6 +1206,17 @@ async function fetchAllGSC() {
   const startDate = document.getElementById('date-start')?.value;
   const endDate = document.getElementById('date-end')?.value;
   if (!siteUrl) return;
+
+  // 日付バリデーション
+  if (startDate > endDate) {
+    alert('⚠️ 開始日が終了日より後になっています。日付を確認してください。');
+    return;
+  }
+  const today = new Date().toISOString().slice(0,10);
+  if (startDate > today) {
+    alert('⚠️ 開始日が未来の日付になっています。');
+    return;
+  }
 
   // グローバルサイト連動
   S.activeSite = siteUrl;
@@ -2712,19 +2787,21 @@ function renderZohoTable(data) {
 
     const tags = d.tags.map(t => `<span style="background:#f0f4ff;color:#3366ff;border-radius:4px;padding:1px 7px;font-size:11px;margin:1px;display:inline-block">${esc(t)}</span>`).join('');
 
+    const orgId = (document.getElementById('zoho-org-id')?.value || localStorage.getItem('zohoOrgId') || '').trim();
+    const numericId = d.id ? d.id.replace(/^zcrm_/, '') : '';
+    const crmUrl = orgId && numericId ? `https://crm.zoho.jp/crm/org${orgId}/tab/Stores/${numericId}` : '';
+
     const links = [];
     if (d.website) links.push(`<a href="${esc(d.website)}" target="_blank" style="color:#3366ff;font-size:11px;margin-right:6px" title="Webサイト"><i class="ti ti-world"></i></a>`);
     if (d.ga4) links.push(`<a href="${esc(d.ga4)}" target="_blank" style="color:#e37400;font-size:11px;margin-right:6px" title="GA4"><i class="ti ti-chart-line"></i></a>`);
     if (d.hearingSheet) links.push(`<a href="${esc(d.hearingSheet)}" target="_blank" style="color:#16a34a;font-size:11px;margin-right:6px" title="ヒアリングシート"><i class="ti ti-file-text"></i></a>`);
-    const orgId = (document.getElementById('zoho-org-id')?.value || localStorage.getItem('zohoOrgId') || '').trim();
-    if (orgId && d.id) {
-      const numericId = d.id.replace(/^zcrm_/, '');
-      links.push(`<a href="https://crm.zoho.jp/crm/org${orgId}/tab/Stores/${numericId}" target="_blank" style="color:#e8442e;font-size:11px" title="Zoho CRMで開く"><i class="ti ti-building-store"></i></a>`);
-    }
 
     html += `<tr style="${isAlert?'background:#fff8f8':''}">
       <td>
-        <div style="font-weight:600;color:#1a1a2e">${esc(d.name)}</div>
+        ${crmUrl
+          ? `<a href="${crmUrl}" target="_blank" style="font-weight:600;color:#1a1a2e;text-decoration:none" onmouseover="this.style.color='#e8442e'" onmouseout="this.style.color='#1a1a2e'">${esc(d.name)}</a>`
+          : `<div style="font-weight:600;color:#1a1a2e">${esc(d.name)}</div>`
+        }
         ${d.website?`<div style="font-size:11px;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">${esc(d.website.replace(/^https?:\/\//,''))}</div>`:''}
       </td>
       <td style="font-size:13px;white-space:nowrap">${esc(d.person)||'−'}</td>
